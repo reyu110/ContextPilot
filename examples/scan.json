@@ -1,0 +1,77 @@
+{
+  "files": [
+    {
+      "bytes_read": 49,
+      "framework_signals": [],
+      "language": null,
+      "mtime_ns": 1792416315148232771,
+      "partial": false,
+      "path": "README.md",
+      "roles": [
+        "documentation"
+      ],
+      "sample_sha256": "cd0f49b90a3b01333e6838352cf0141b5687027b25f952778e1ecf6dcdd92a47",
+      "size": 49
+    },
+    {
+      "bytes_read": 78,
+      "framework_signals": [],
+      "language": "Python",
+      "mtime_ns": 1792416315148499438,
+      "partial": false,
+      "path": "main.py",
+      "roles": [
+        "entry-point candidate (filename heuristic)"
+      ],
+      "sample_sha256": "623dd623727fb0e551a1743f266c61ad930bcff53bae9713ce1861492424d78e",
+      "size": 78
+    },
+    {
+      "bytes_read": 80,
+      "framework_signals": [],
+      "language": null,
+      "mtime_ns": 1792416315148371771,
+      "partial": false,
+      "path": "pyproject.toml",
+      "roles": [
+        "configuration"
+      ],
+      "sample_sha256": "7a45d285142c0ed5454b15f7de263f5cb29971d0ebfa890cb9bd85bb2a5c7639",
+      "size": 80
+    }
+  ],
+  "fingerprint": "265eedf137a1de412719ad357fc451a2b70cb48604026177aa01b21af3e72307",
+  "framework_signals": [],
+  "git": {
+    "available": false,
+    "changes": [],
+    "commits": [],
+    "note": "No usable Git work tree (or Git unavailable)."
+  },
+  "languages": {
+    "Python": 1
+  },
+  "limits": {
+    "max_bytes": 262144,
+    "max_candidates": 20000,
+    "max_file_bytes": 16384,
+    "max_files": 120,
+    "max_output_bytes": 65536
+  },
+  "project": "example-project",
+  "stats": {
+    "approx_input_tokens": 52,
+    "binary_skipped": 0,
+    "bytes_read": 207,
+    "bytes_read_this_run": 207,
+    "cache_hit": false,
+    "candidates": 3,
+    "discovery_truncated": false,
+    "files_inspected": 3,
+    "output_truncated": false,
+    "selection_truncated": false,
+    "sensitive_skipped": 0
+  },
+  "version": 1,
+  "warnings": []
+}
