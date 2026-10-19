@@ -22,4 +22,5 @@ or exploitable details in a public issue. Use a minimal synthetic reproduction
 and ask maintainers for a private reporting channel. No hosted security contact
 or service is provisioned by this MVP.
 
-Contributions are licensed under the repository's MIT license.
+Contributions are licensed under the repository's [Prosperity Public License
+3.0.0](LICENSE).

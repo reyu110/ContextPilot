@@ -1,5 +1,6 @@
 ---
 name: contextpilot
+license: See LICENSE for the Prosperity Public License 3.0.0
 description: Create bounded local repository handoffs, verify them when resuming, and open Pilotboard for local snapshot-savings estimates. Complements Claude Code /compact without accessing private session history.
 disable-model-invocation: true
 argument-hint: "snapshot|resume|status|board [--root PATH]"

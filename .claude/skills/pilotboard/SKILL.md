@@ -1,5 +1,6 @@
 ---
 name: pilotboard
+license: See LICENSE for the Prosperity Public License 3.0.0
 description: Open the ContextPilot localhost dashboard for lifetime, session and snapshot-prompt token and dollar estimates. Requires the companion contextpilot skill.
 disable-model-invocation: true
 argument-hint: "[--root PATH] [--port N]"

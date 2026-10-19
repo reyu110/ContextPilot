@@ -4,7 +4,7 @@
   <a href="#quick-start"><img alt="Claude Code skill" src="https://img.shields.io/badge/Claude_Code-Skill-152936?style=flat-square&amp;labelColor=152936&amp;color=73e2c0" /></a>
   <a href="#quick-start"><img alt="Python 3.11 or newer" src="https://img.shields.io/badge/Python-3.11%2B-152936?style=flat-square&amp;labelColor=152936&amp;color=73e2c0" /></a>
   <a href="#privacy-and-trust"><img alt="Runs locally" src="https://img.shields.io/badge/Runtime-Local-152936?style=flat-square&amp;labelColor=152936&amp;color=73e2c0" /></a>
-  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/License-MIT-152936?style=flat-square&amp;labelColor=152936&amp;color=73e2c0" /></a>
+  <a href="LICENSE"><img alt="Prosperity Public License 3.0.0" src="https://img.shields.io/badge/License-Prosperity_3.0.0-152936?style=flat-square&amp;labelColor=152936&amp;color=73e2c0" /></a>
 </p>
 
 <p align="center">
@@ -433,6 +433,17 @@ or external network is required once pytest is installed.
 
 ---
 
-Built with Python's standard library. Distributed under the [MIT license](LICENSE).
+## License
+
+Distributed under the [Prosperity Public License 3.0.0](LICENSE): free for
+noncommercial use, with a thirty-day trial for commercial use. See the full
+license for its terms and exceptions. The license text comes from the
+[official v3.0.0 release](https://github.com/licensezero/prosperity-public-license/blob/v3.0.0/LICENSE.md).
+
+Earlier revisions published under MIT retain their MIT permissions; this change
+does not revoke previously granted licenses. Each installable skill includes its
+own copy of the current license and contributor/source notices.
+
+Built with Python's standard library.
 [Contributions](CONTRIBUTING.md) are welcome; keep changes small, local, and honest
 about what the scanner can verify.
