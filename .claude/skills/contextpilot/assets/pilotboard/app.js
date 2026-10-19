@@ -64,6 +64,20 @@ function renderMetrics() {
   $("donut").parentElement.setAttribute("aria-label", reduction === null ? "No baseline recorded" : Math.round(Math.abs(reduction) * 100) + "% " + (reduction < 0 ? "larger handoff" : "estimated net reduction"));
 }
 
+function renderOptimizer() {
+  const metrics = data.optimizer;
+  const fields = ["bounded_reads", "duplicate_reads", "payload_bytes_avoided", "estimated_tokens_avoided"];
+  if (!metrics || metrics.error || fields.some(field => !Number.isSafeInteger(metrics[field]) || metrics[field] < 0)) {
+    for (const id of ["optimizer-bounded", "optimizer-duplicates", "optimizer-tokens", "optimizer-value"]) set(id, "—");
+    set("optimizer-note", metrics?.error || "Restart Pilotboard to load live optimizer statistics."); return;
+  }
+  set("optimizer-bounded", number.format(metrics.bounded_reads));
+  set("optimizer-duplicates", number.format(metrics.duplicate_reads));
+  set("optimizer-tokens", number.format(metrics.estimated_tokens_avoided));
+  set("optimizer-value", amount(metrics.estimated_tokens_avoided));
+  set("optimizer-note", bytes(metrics.payload_bytes_avoided) + " of duplicate Read text requested to be removed · all optimizer sessions in this project. Token and dollar equivalents are estimates, not billing measurements. Separate from snapshot scenarios above.");
+}
+
 function svgNode(tag, attrs, text) {
   const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
   for (const [key, value] of Object.entries(attrs)) element.setAttribute(key, String(value));
@@ -135,7 +149,7 @@ function renderPrompts() {
 }
 function render() {
   if (!data) return;
-  renderMetrics(); timeline(); renderSessions(); renderPrompts();
+  renderMetrics(); renderOptimizer(); timeline(); renderSessions(); renderPrompts();
 }
 async function load() {
   if (activeRequest) activeRequest.abort();

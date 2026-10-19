@@ -22,16 +22,18 @@ def identifier(value: str) -> str:
     return value
 
 
-def database_path(root: Path) -> Path:
+def database_path(root: Path, relative: str = DB_NAME) -> Path:
+    if relative not in {DB_NAME, ".contextpilot/optimizer.sqlite3"}:
+        raise ValueError("Unknown ContextPilot database")
     for suffix in ("", "-journal", "-wal", "-shm"):
-        path = safe_path(root, DB_NAME + suffix)
+        path = safe_path(root, relative + suffix)
         try:
             mode = path.stat(follow_symlinks=False).st_mode
         except FileNotFoundError:
             continue  # Another SQLite writer may have just removed its journal.
         if not stat.S_ISREG(mode):
             raise ValueError("Usage database paths must be regular files")
-    return safe_path(root, DB_NAME)
+    return safe_path(root, relative)
 
 
 def record(root: Path, baseline_bytes: int, handoff_bytes: int, cache_bytes: int,

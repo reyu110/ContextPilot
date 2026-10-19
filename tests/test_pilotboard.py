@@ -162,6 +162,35 @@ def test_empty_dashboard_never_creates_artifacts(tmp_path: Path) -> None:
     assert list(tmp_path.iterdir()) == []
 
 
+def test_optimizer_receipts_do_not_inflate_snapshot_totals(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import optimizer
+    monkeypatch.setattr(optimizer, "check_version", lambda: None)
+    source = tmp_path / "main.py"
+    content = "# A useful line for the live-read fixture\n" * 400
+    source.write_text(content)
+    usage.record(tmp_path, 400, 80, 0, "session", "snapshot")
+    optimizer.configure(tmp_path, True)
+    payload = {"session_id": "session", "cwd": str(tmp_path), "hook_event_name": "UserPromptSubmit"}
+    optimizer.hook(tmp_path, payload)
+    for index in range(2):
+        payload.update(tool_name="Read", tool_input={"file_path": str(source)}, tool_use_id="toolu_" + str(index))
+        optimizer.hook(tmp_path, {**payload, "hook_event_name": "PreToolUse"})
+        optimizer.hook(tmp_path, {**payload, "hook_event_name": "PostToolUse", "tool_response": {
+            "type": "text", "file": {"filePath": str(source), "content": content,
+                                      "numLines": 400, "startLine": 1, "totalLines": 400}}})
+    with running_server(tmp_path) as server:
+        auth = {"X-Pilotboard-Key": server.dashboard_url.split("#")[1]}
+        result = json.loads(request(server, "/api/usage", auth)[2])
+        assert result["lifetime"]["saved_tokens"] == 80
+        assert result["optimizer"]["duplicate_reads"] == 1
+        assert result["optimizer"]["payload_bytes_avoided"] > 0
+        (tmp_path / optimizer.DB).write_bytes(b"corrupted live history")
+        code, _, body = request(server, "/api/usage", auth)
+        assert code == 200
+        assert json.loads(body)["lifetime"]["saved_tokens"] == 80
+        assert "error" in json.loads(body)["optimizer"]
+
+
 def test_installed_bundle_survives_copy_and_alias_is_discoverable(tmp_path: Path) -> None:
     import shutil
     import subprocess

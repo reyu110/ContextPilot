@@ -14,6 +14,7 @@
 <p align="center">
   <a href="#quick-start">Install</a> ·
   <a href="#how-it-works">Workflow</a> ·
+  <a href="#automatic-context-optimization">Automatic mode</a> ·
   <a href="#pilotboard">Dashboard</a> ·
   <a href="#estimates-at-a-glance">Estimates</a> ·
   <a href="examples/HANDOFF.md">Example handoff</a> ·
@@ -62,6 +63,54 @@ Use it alongside Claude Code's `/compact`. Compact manages the active
 conversation; ContextPilot leaves a reviewable handoff in your working tree.
 It cannot recover private chat history, infer your intentions, or measure
 Claude's context-window utilization.
+
+## Automatic context optimization
+
+For ongoing work in Claude Code **2.1.303 or newer**, opt in once per project:
+
+```text
+/contextpilot auto on
+```
+
+Restart Claude Code to load the hooks and environment reliably. After that, the
+optimizer runs automatically as the conversation continues:
+
+| Behavior | How it reduces context | How to get more detail |
+| :--- | :--- | :--- |
+| Chunk large file reads | Unbounded text reads of eligible files over 32 KiB get a 400-line limit and an explicit partial-view notice | Ask for another offset or an explicit line limit; explicit requests are preserved |
+| Reduce duplicate reads | Identical text Read results within the same prompt return a short reference to the earlier result | Read a different explicit range for a fresh copy |
+| Earlier native compaction | Sets a 70% auto-compact-window threshold only when no local or exported override exists | Existing overrides and disabled compaction remain under your control |
+
+```text
+/contextpilot auto status
+/contextpilot auto off
+```
+
+`auto status` is read-only. `auto off` removes the exact owned hooks and the
+unchanged default threshold; restart to clear the previous environment. It
+preserves other settings, permission rules, hooks and usage history. This mode
+does not rewrite past messages, summarize with a separate paid model, bypass
+tool permissions, or read Claude transcripts.
+
+Enabling explicitly updates **`.claude/settings.local.json`** and adds its root
+ignore rule along with `.contextpilot/`. Hook paths refer to the installed bundle,
+not scripts discovered in your repository. No source or prompt bodies are saved;
+only hashes, opaque prompt identifiers and numeric statistics are retained.
+
+Duplicate state resets at prompt, session and compaction boundaries. A result
+that started before a boundary cannot become a later prompt's cache anchor.
+Files that changed, different ranges, excluded paths, symlinks, non-text outputs,
+unknown schemas and errors pass through. If earlier output is no longer visible,
+an explicit fresh range returns its content again. Hook errors preserve original
+tool behavior. The optimizer currently targets the main conversation's **Read**
+tool; Bash, other tools and subagents are unchanged.
+
+Pilotboard's **Live Read optimizer** panel reports requested duplicate-text byte
+reductions, rough token/dollar equivalents, and the number of large reads bounded.
+These totals are separate from snapshot scenarios. Smaller reads can need more
+tool calls, compaction itself can consume tokens, and provider caching changes
+cost: **neither token savings nor invoice savings are guaranteed**. See the
+[optimizer contract](.claude/skills/contextpilot/references/optimizer.md).
 
 ## Pilotboard
 

@@ -13,6 +13,7 @@ from urllib.parse import parse_qs, urlsplit
 import webbrowser
 
 from usage import identifier, summary
+from optimizer import totals as optimizer_totals
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets" / "pilotboard"
 
@@ -67,6 +68,10 @@ def make_server(root: Path, port: int = 0, session_id: str | None = None) -> Thr
                 selected = args.get("session", [session_id])[0]
                 # An empty session value explicitly selects all sessions.
                 result = summary(root, selected or None, int(args.get("offset", ["0"])[0]))
+                try:
+                    result["optimizer"] = optimizer_totals(root)
+                except (OSError, ValueError, sqlite3.Error):
+                    result["optimizer"] = {"error": "Optimizer history could not be read; snapshot history is still available."}
                 self.reply(200, json.dumps(result, ensure_ascii=True).encode(), "application/json")
             except (ValueError, OverflowError):
                 self.reply(400, b"Invalid session or page")

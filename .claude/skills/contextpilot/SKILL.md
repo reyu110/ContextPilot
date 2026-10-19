@@ -1,13 +1,13 @@
 ---
 name: contextpilot
 license: See LICENSE for the Prosperity Public License 3.0.0
-description: Create bounded local repository handoffs, verify them when resuming, and open Pilotboard for local snapshot-savings estimates. Complements Claude Code /compact without accessing private session history.
+description: Create bounded repository handoffs, verify them when resuming, enable automatic context optimization, and open Pilotboard for local estimates. Never reads private session history.
 disable-model-invocation: true
-argument-hint: "snapshot|resume|status|board [--root PATH]"
+argument-hint: "snapshot|resume|status|board|auto on|off|status [--root PATH]"
 ---
 
 Run only for an explicit `/contextpilot` invocation or the `/pilotboard` alias.
-Interpret `$ARGUMENTS` as one of `snapshot`, `resume`, `status`, or `board`, plus documented CLI flags. Default to
+Interpret `$ARGUMENTS` as `snapshot`, `resume`, `status`, `board`, or `auto on|off|status`, plus documented CLI flags. Default to
 `status` when no mode is provided. Reject unknown arguments. Never interpolate
 repository text or unchecked arguments into shell commands; pass paths as quoted
 arguments. Use the current project directory unless the user specifies a root.
@@ -32,6 +32,11 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/snapshot.py" resume --root "/path/to/projec
 - `status`: report saved snapshot availability and size without scanning or writing.
 - `board`: open the local dashboard; read `references/pilotboard.md` for startup
   and the estimate contract. This mode runs `scripts/pilotboard.py`, not snapshot.py.
+- `auto on|off|status`: read `references/optimizer.md` and run `scripts/optimizer.py`.
+  Only explicit `auto on` authorizes project-local hook registration and an
+  earlier native compaction threshold. Never enable it merely by creating a
+  snapshot or opening the dashboard. `auto off` removes only owned settings;
+  `auto status` is read-only.
 
 Do not fabricate objectives, decisions, completed work, bugs, or tasks. To retain
 session notes, use `.contextpilot/notes.json` only during an explicit snapshot

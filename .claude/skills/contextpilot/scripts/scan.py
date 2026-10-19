@@ -52,6 +52,8 @@ class Limits:
 
 def allowed_path(path: Path) -> bool:
     """Apply privacy exclusions before reading contents or exporting path names."""
+    if path.name.lower() == "settings.local.json" and any(part.lower() == ".claude" for part in path.parts[:-1]):
+        return False
     for part in path.parts:
         name = part.lower()
         if name in IGNORED_DIRS or name.startswith(".env") or SECRET_NAME.search(name):
@@ -165,6 +167,16 @@ def priority(name: str, changed: set[str] | None = None) -> int:
     return score - len(path.parts)
 
 
+def prepare_ignore_engine(root: Path, temporary: str) -> str | None:
+    """Share Git's ignore semantics with bounded live-tool inspection."""
+    try:
+        git(root, "rev-parse", "--git-dir")
+        return None
+    except (OSError, subprocess.SubprocessError):
+        git(root, "init", "--bare", temporary)
+        return temporary
+
+
 def discover(root: Path, limits: Limits) -> tuple[list[dict[str, Any]], list[str], bool]:
     """Use Git's ignore engine even for projects that have not run git init."""
     files: list[dict[str, Any]] = []
@@ -173,15 +185,10 @@ def discover(root: Path, limits: Limits) -> tuple[list[dict[str, Any]], list[str
     truncated = False
     with tempfile.TemporaryDirectory(prefix="contextpilot-ignore-") as temporary:
         try:
-            git(root, "rev-parse", "--git-dir")
-            ignore_dir = None
+            ignore_dir = prepare_ignore_engine(root, temporary)
         except (OSError, subprocess.SubprocessError):
-            try:
-                git(root, "init", "--bare", temporary)
-                ignore_dir = temporary
-            except (OSError, subprocess.SubprocessError):
-                # Fail closed: a missing ignore engine must not expose ignored files.
-                return [], ["Git is required to safely respect .gitignore; no files inspected."], False
+            # Fail closed: a missing ignore engine must not expose ignored files.
+            return [], ["Git is required to safely respect .gitignore; no files inspected."], False
         def walk_error(error: OSError) -> None:
             warnings.append(f"Directory unavailable: {type(error).__name__}")
         try:
@@ -330,7 +337,7 @@ def write_artifact(root: Path, name: str, data: bytes) -> None:
             os.unlink(temporary)
 
 
-def ensure_ignored(root: Path) -> None:
+def ensure_ignored(root: Path, *, local_settings: bool = False) -> None:
     path = safe_path(root, ".gitignore")
     try:
         existing = read_local(root, ".gitignore", 1048577)
@@ -338,9 +345,11 @@ def ensure_ignored(root: Path) -> None:
         existing = b""
     if len(existing) > 1048576:
         raise ValueError(".gitignore exceeds safe edit limit")
-    if b"/.contextpilot/" not in existing.splitlines():
+    rules = [b"/.contextpilot/"] + ([b"/.claude/settings.local.json"] if local_settings else [])
+    missing = [rule for rule in rules if rule not in existing.splitlines()]
+    if missing:
         with path.open("ab") as stream:
-            stream.write((b"\n" if existing and not existing.endswith(b"\n") else b"") + b"/.contextpilot/\n")
+            stream.write((b"\n" if existing and not existing.endswith(b"\n") else b"") + b"\n".join(missing) + b"\n")
 
 
 def add_limits(parser: argparse.ArgumentParser) -> None:
