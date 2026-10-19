@@ -7,11 +7,13 @@ from datetime import datetime, timezone
 import hashlib
 from pathlib import Path
 import re
+import sqlite3
 from typing import Any
 
 from scan import (Limits, SECRET_CONTENT, add_limits, ensure_ignored, json_bytes,
                   limits_from_args, load_json, read_local, safe_path, scan_repository,
                   write_artifact)
+from usage import database_path, identifier, record
 
 NOTE_SECTIONS = {
     "objectives": "Current development objectives",
@@ -118,9 +120,14 @@ def render_handoff(scan: dict[str, Any], notes: dict[str, list[dict[str, str]]],
     return bounded_markdown(lines, limit)
 
 
-def create_snapshot(root: Path, limits: Limits | None = None, refresh: bool = False) -> dict[str, Any]:
+def create_snapshot(root: Path, limits: Limits | None = None, refresh: bool = False, *,
+                    session_id: str = "unassigned", prompt_id: str | None = None) -> dict[str, Any]:
     root = root.resolve(strict=True)
     limits = limits or Limits()
+    identifier(session_id)
+    if prompt_id is not None:
+        identifier(prompt_id)
+    database_path(root)
     notes = notes_for(root)
     # Validate destinations before making the explicitly authorized writes.
     for name in ("scan.json", "HANDOFF.md", "HANDOFF.previous.md", "snapshot.json"):
@@ -141,7 +148,15 @@ def create_snapshot(root: Path, limits: Limits | None = None, refresh: bool = Fa
     write_artifact(root, "scan.json", json_bytes(result))
     write_artifact(root, "HANDOFF.md", handoff)
     write_artifact(root, "snapshot.json", json_bytes({"handoff_sha256": hashlib.sha256(handoff).hexdigest(), "fingerprint": result["fingerprint"]}))
-    return {"scan_bytes": len(json_bytes(result)), "handoff_bytes": len(handoff), "approx_output_tokens": (len(json_bytes(result)) + len(handoff) + 3) // 4, "cache_hit": result["stats"]["cache_hit"], "bytes_read_this_run": result["stats"]["bytes_read_this_run"]}
+    output = {"scan_bytes": len(json_bytes(result)), "handoff_bytes": len(handoff), "approx_output_tokens": (len(json_bytes(result)) + len(handoff) + 3) // 4, "cache_hit": result["stats"]["cache_hit"], "bytes_read_this_run": result["stats"]["bytes_read_this_run"]}
+    sampled = sum(item["bytes_read"] for item in result["files"])
+    baseline = sampled + (len(json_bytes(notes)) if notes else 0)
+    try:
+        output["usage_prompt_id"] = record(root, baseline, len(handoff),
+            sampled if result["stats"]["cache_hit"] else 0, session_id, prompt_id)
+    except (OSError, ValueError, sqlite3.Error) as exc:
+        output["usage_warning"] = f"Snapshot saved; usage tracking failed ({type(exc).__name__}). Preserve usage.sqlite3."
+    return output
 
 
 def read_handoff(root: Path) -> str:
@@ -209,8 +224,12 @@ def main() -> int:
     parser.add_argument("mode", choices=("snapshot", "resume", "status"))
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--refresh", action="store_true", help="Ignore the metadata cache")
+    parser.add_argument("--session-id", help="Explicit session identifier for snapshot usage estimates")
+    parser.add_argument("--prompt-id", help="Optional idempotent snapshot-request identifier")
     add_limits(parser)
     args = parser.parse_args()
+    if args.mode != "snapshot" and (args.session_id is not None or args.prompt_id is not None):
+        parser.error("Session and prompt IDs apply only to snapshot")
     try:
         base = None
         if args.mode == "resume":
@@ -219,7 +238,8 @@ def main() -> int:
                 base = Limits(**previous["limits"])
         limits = limits_from_args(args, base)
         if args.mode == "snapshot":
-            print(json_bytes(create_snapshot(args.root, limits, args.refresh)).decode(), end="")
+            print(json_bytes(create_snapshot(args.root, limits, args.refresh,
+                session_id=args.session_id or "unassigned", prompt_id=args.prompt_id)).decode(), end="")
         elif args.mode == "resume":
             print(resume(args.root, limits), end="")
         else:

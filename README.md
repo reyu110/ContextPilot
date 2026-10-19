@@ -14,6 +14,7 @@
 <p align="center">
   <a href="#quick-start">Install</a> ·
   <a href="#how-it-works">Workflow</a> ·
+  <a href="#pilotboard">Dashboard</a> ·
   <a href="#estimates-at-a-glance">Estimates</a> ·
   <a href="examples/HANDOFF.md">Example handoff</a> ·
   <a href="#reference">Reference</a>
@@ -29,7 +30,7 @@ runtime Python dependencies.**
 Install for Claude Code across your projects:
 
 ```sh
-npx skills add reyu110/ContextPilot --skill contextpilot --agent claude-code --global --yes
+npx skills add reyu110/ContextPilot --skill contextpilot --skill pilotboard --agent claude-code --global --yes
 ```
 
 Then use these commands in Claude Code:
@@ -46,6 +47,9 @@ listed. This public repository does not require GitHub authentication.
 > Snapshot writes inside `.contextpilot/` and appends `/.contextpilot/` to
 > `.gitignore`. Resume and status are read-only. Tasks never execute automatically.
 
+Open the localhost dashboard with **`/pilotboard`**. Installing both skills gives
+you the short alias; `/contextpilot board` works with the main skill alone.
+
 ## How it works
 
 ![Three steps: snapshot selected files and explicit notes; retain a local handoff and integrity record; resume with metadata and Git checks, then reconfirm tasks.](docs/assets/workflow.svg)
@@ -58,6 +62,58 @@ Use it alongside Claude Code's `/compact`. Compact manages the active
 conversation; ContextPilot leaves a reviewable handoff in your working tree.
 It cannot recover private chat history, infer your intentions, or measure
 Claude's context-window utilization.
+
+## Pilotboard
+
+**`/pilotboard`** opens a local visual dashboard with lifetime totals, session
+breakdowns, a 7/30-day timeline, and paginated snapshot-prompt details. Choose a
+session, compare sampled context with the generated handoff, and adjust the
+input-token dollar rate to explore an approximate value.
+
+| View | What it covers |
+| :--- | :--- |
+| Lifetime | Every recorded snapshot request in this project, since tracking began |
+| Session | Requests grouped by an explicitly supplied Claude session ID |
+| By prompt | One row per snapshot request, including baseline, handoff, signed net estimate and dollar scenario |
+
+New snapshots automatically record numeric counts, time and identifiers in
+`.contextpilot/usage.sqlite3`. There is no backfill, transcript access, prompt
+body storage or ordinary-chat tracking. Requests without a session ID appear as
+unassigned. Use `--session-id` and optionally `--prompt-id` with the snapshot CLI
+to group requests explicitly; repeating a prompt ID in the same session retains
+its first estimate instead of counting it twice.
+
+**The savings are a scenario, not a measurement of your Claude bill:**
+
+```text
+baseline = retained sampled-file bytes + explicit notes JSON bytes (when present)
+net estimated tokens = ceil(baseline / 4) − ceil(generated handoff bytes / 4)
+approximate USD = net estimated tokens × selected USD-per-million rate / 1,000,000
+```
+
+This assumes the sampled context would otherwise be read once. Small projects
+can produce larger handoffs; those negative values stay visible. The editable
+default of $3 per million input tokens is illustrative, not a current model price.
+Responses, system/tool overhead, actual billing and provider cache discounts are
+excluded. Cached disk reads avoided are displayed separately.
+
+The server binds only to `127.0.0.1` on an available port, opens your default
+browser, and requires a random access key for its read-only API. No external
+fonts, scripts or services load. Keep the complete printed URL private. Stop the
+background job or press Ctrl+C in its terminal to stop the server. Opening the
+dashboard never scans or writes project artifacts. The browser remembers a rate
+only for the current localhost origin; a new port may reset it.
+
+Run without Claude Code:
+
+```sh
+python3 .claude/skills/contextpilot/scripts/pilotboard.py --root /path/to/project
+```
+
+Use `--no-browser` for a terminal-only launch, `--port N` to choose a port, and
+`--session-id ID` to open a specific session. Prompt pages contain 50 requests;
+session lists show the most recent 100 groups. Lifetime totals always include
+the whole project's ledger, including older sessions.
 
 ## Estimates at a glance
 
@@ -75,8 +131,9 @@ metadata checks still run.
 
 The skill runs locally, filters ignored and sensitive paths before sampling, and
 skips symlinks. It does not run repository scripts, export source file bodies, or
-make network requests. The `npx` installer downloads the skill; the installed
-Python runtime does not upload your repository.
+make external network requests. The `npx` installer downloads the skill;
+Pilotboard serves numeric estimates over authenticated loopback HTTP. The
+installed Python runtime does not upload your repository.
 
 **Review before sharing.** Filenames, dependency signals and human notes can
 contain private information. Secret detection is heuristic. A metadata match
@@ -168,6 +225,12 @@ The estimate is bytes / 4, not a tokenizer or a claim about model utilization.
 | `resume` | Saved handoff + current bounded scan | Nothing |
 | `status` | Saved scan metadata | Nothing |
 
+Pilotboard is served by `scripts/pilotboard.py` with bundled HTML/CSS/JavaScript.
+`scripts/usage.py` owns the project-local SQLite ledger and estimate aggregation.
+SQLite is part of Python's standard library; there are no new runtime packages.
+The `pilotboard` companion is only an alias; the runtime remains self-contained
+inside the main `contextpilot` bundle.
+
 - `scan.py` owns deterministic discovery, privacy filtering, Git inspection,
   prioritization, bounded text reads, cache fingerprints and confined artifact I/O.
 - `snapshot.py` owns note validation, labeled Markdown, one-generation backup,
@@ -197,6 +260,9 @@ distinct labels. See the real generated [example](examples/HANDOFF.md).
 └── notes.json                  # Optional, explicitly supplied notes
 ```
 
+New snapshots also maintain `.contextpilot/usage.sqlite3` for numeric usage
+history. SQLite may create temporary journal files in that same directory.
+
 </details>
 
 <details>
@@ -219,6 +285,7 @@ Personal installation, available across your projects:
 ```sh
 mkdir -p ~/.claude/skills
 cp -R .claude/skills/contextpilot ~/.claude/skills/
+cp -R .claude/skills/pilotboard ~/.claude/skills/
 ```
 
 Project installation, available only in a selected project:
@@ -226,6 +293,7 @@ Project installation, available only in a selected project:
 ```sh
 mkdir -p /path/to/project/.claude/skills
 cp -R .claude/skills/contextpilot /path/to/project/.claude/skills/
+cp -R .claude/skills/pilotboard /path/to/project/.claude/skills/
 ```
 
 Run these from this checkout. If the destination already contains ContextPilot,
@@ -280,8 +348,8 @@ Git's ignore engine honors nested `.gitignore` rules and negations, even in
 non-Git directories via a temporary bare Git directory outside the project. If
 Git is unavailable or ignore checking fails, discovery fails closed and surfaces
 a warning rather than inspecting potentially ignored files. Tracked files that
-match ignore rules are excluded too. There are no network operations, subprocess
-shells, repository scripts, diffs, author identities, commit messages, or exported
+match ignore rules are excluded too. The scanner makes no network requests and
+does not use subprocess shells, repository scripts, diffs, author identities, commit messages, or exported
 file bodies. Recent commit metadata contains only short hashes and dates.
 
 The scanner skips `.env*`, credential/secret/token filenames, SSH/private-key
@@ -331,10 +399,12 @@ python3 -m venv .venv
 ```
 
 On Windows use `.venv\Scripts\python.exe`. Tests use temporary repositories and
-require Git. They cover discovery/ranking, Git status and renames, non-Git/empty
+require Git and loopback socket access for the dashboard HTTP tests. They cover discovery/ranking, Git status and renames, non-Git/empty
 projects, ignore rules, secrets/binaries, symlinks, Unicode, missing files, large
 inventories, snapshot notes/backups, resume/cache, limits and skill frontmatter.
-No API key or network is required to run tests once pytest is installed.
+Dashboard tests also cover signed estimates, session grouping, pagination,
+concurrent ledger writes, API access controls and read-only behavior. No API key
+or external network is required once pytest is installed.
 
 </details>
 

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light"><title>Pilotboard · ContextPilot</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%23172e2b'/%3E%3Cpath d='M11 29V11h18L11 29' fill='none' stroke='%238ce5be' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/app.css"><script src="/app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to dashboard</a>
+<aside class="sidebar">
+  <a class="brand" href="#overview"><span class="brand-icon">↗</span> ContextPilot</a>
+  <div class="workspace"><span class="workspace-icon">CP</span><div><span class="eyebrow">YOUR WORKSPACE</span><strong id="project">Local project</strong></div></div>
+  <p class="nav-label">WORKSPACE ANALYTICS</p>
+  <nav aria-label="Dashboard sections"><a class="nav-link active" href="#overview"><span aria-hidden="true">◫</span> Overview</a><a class="nav-link" href="#sessions"><span aria-hidden="true">▤</span> Sessions</a><a class="nav-link" href="#prompts"><span aria-hidden="true">⌘</span> By prompt</a><a class="nav-link" href="#methodology"><span aria-hidden="true">◎</span> How estimates work</a></nav>
+  <div class="sidebar-note"><span class="small-orbit" aria-hidden="true">↗</span><strong>Small handoff.<br>Clearer next session.</strong><p>Your data stays in this project. Your dashboard stays local.</p><span class="local-pill"><i></i> 127.0.0.1 · local only</span></div>
+  <div class="sidebar-footer">PILOTBOARD <span>BY CONTEXTPILOT</span></div>
+</aside>
+<div class="content">
+<header class="topbar"><div><span class="muted">Workspace</span><span class="slash">/</span><strong>Pilotboard</strong></div><div class="top-actions"><span class="live"><i></i> Local connection</span><button id="refresh" class="icon-button" aria-label="Refresh dashboard">↻</button></div></header>
+<main id="main" tabindex="-1">
+  <div id="error" class="error" role="alert" hidden></div>
+  <section id="overview" class="overview">
+    <div class="page-title"><div><p class="eyebrow">A CLEARER VIEW OF YOUR CONTEXT</p><h1>Your handoffs, in numbers<span>.</span></h1><p class="intro">Less to reread. More room to pick up where you left off.</p></div><span class="estimate-badge">◈ &nbsp; Estimated, always</span></div>
+    <div class="toolbar"><div class="scope"><span class="scope-dot"></span>Lifetime in this project <span id="since" class="muted"></span></div><label class="session-control">Session <select id="session"><option value="">All sessions</option></select></label></div>
+    <div class="metrics">
+      <article class="metric featured"><div class="metric-heading">Lifetime net tokens saved <span aria-hidden="true">↗</span></div><strong id="lifetime-tokens" class="metric-value">—</strong><p id="lifetime-caption">Waiting for local usage history</p><div class="metric-footer">ESTIMATED CONTEXT REDUCTION</div></article>
+      <article class="metric"><div class="metric-heading">Approx. lifetime value <span class="metric-symbol">$</span></div><strong id="lifetime-money" class="metric-value">—</strong><p id="money-caption">At the rate selected below</p><div class="metric-footer">USD · INPUT TOKEN SCENARIO</div></article>
+      <article class="metric"><div class="metric-heading">Selected session savings <span aria-hidden="true">▤</span></div><strong id="session-tokens" class="metric-value">—</strong><p id="session-caption">Choose a session to explore</p><div class="metric-footer" id="session-money">SELECT A SESSION ABOVE</div></article>
+      <article class="metric"><div class="metric-heading">Snapshot requests <span aria-hidden="true">⌘</span></div><strong id="request-count" class="metric-value">—</strong><p id="request-caption">Tracked since this feature was added</p><div class="metric-footer">NO CHAT HISTORY REQUIRED</div></article>
+    </div>
+    <div id="empty" class="empty" hidden><div class="empty-icon">↗</div><div><h2>Your first handoff starts the story.</h2><p>Run <code>/contextpilot snapshot</code> in Claude Code, then refresh. History starts with new snapshots; earlier usage is not reconstructed.</p></div></div>
+    <div class="charts">
+      <section class="panel timeline"><div class="panel-heading"><div><p class="eyebrow">THE BIG PICTURE</p><h2>Net savings over time</h2></div><div class="segments" role="group" aria-label="Chart date range"><button data-days="7">7 days</button><button class="selected" data-days="30" aria-pressed="true">30 days</button></div></div><div class="chart-legend"><span><i class="legend-dot mint"></i> Estimated tokens saved</span><span><i class="legend-dot coral"></i> Handoff overhead</span></div><div id="timeline" class="chart-container" aria-live="polite"></div><div class="chart-footer"><span>Daily net estimates · UTC dates</span><span id="chart-total">—</span></div></section>
+      <section class="panel footprint"><p class="eyebrow">SAME PROJECT. SMALLER CONTEXT?</p><h2>Your context footprint</h2><div class="donut-wrap"><svg viewBox="0 0 180 180" role="img" aria-label="Estimated net context reduction"><circle class="donut-track" cx="90" cy="90" r="70"/><circle id="donut" class="donut-value" cx="90" cy="90" r="70" stroke-dasharray="0 440" transform="rotate(-90 90 90)"/></svg><div class="donut-label"><strong id="reduction">—</strong><span id="reduction-label">net reduction</span></div></div><div class="compare-row"><span><i class="legend-dot gray"></i> Sampled files + notes</span><strong id="baseline">—</strong></div><div class="compare-row"><span><i class="legend-dot mint"></i> Generated handoffs</span><strong id="handoff">—</strong></div><p class="footnote">Selected scope · assumes one reread of sampled files and notes per handoff.</p></section>
+    </div>
+    <section class="rate-panel"><div class="rate-icon" aria-hidden="true">≈</div><div><strong>Your rate. Your estimate.</strong><p>Illustrative input-token rate. Change it to match your own pricing.</p></div><label for="rate">USD / 1M input tokens <span class="rate-input"><span>$</span><input id="rate" type="number" min="0" max="1000" step="0.01" value="3" inputmode="decimal" aria-describedby="rate-help"></span></label><span id="rate-help" class="sr-only">Between zero and 1000 US dollars per million input tokens. This is a scenario rate, not a verified model price.</span></section>
+  </section>
+  <section id="sessions" class="panel section-panel"><div class="panel-heading"><div><p class="eyebrow">ONE HANDOFF AT A TIME</p><h2>Session breakdown</h2></div><span class="subtle-tag" id="session-count">0 sessions</span></div><p class="section-caption">Choose a session to see its timeline and individual snapshot prompts.</p><div class="table-scroll"><table><thead><tr><th>Session</th><th>Snapshots</th><th>Net tokens saved <span>est.</span></th><th>Approx. value</th><th><span class="sr-only">Select session</span></th></tr></thead><tbody id="session-rows"></tbody></table></div><p class="table-note" id="sessions-note">Most recent 100 sessions. Lifetime totals include every recorded session.</p></section>
+  <section id="prompts" class="panel section-panel"><div class="panel-heading"><div><p class="eyebrow">THE DETAILS BEHIND THE TOTALS</p><h2>By-prompt breakdown</h2></div><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search this page" aria-label="Search prompt or session IDs on this page"></label></div><p class="section-caption">One row per snapshot request. Ordinary Claude chat prompts are not tracked.</p><div class="table-scroll"><table><thead><tr><th>Snapshot prompt</th><th>Baseline → handoff</th><th>Net tokens saved <span>est.</span></th><th>Approx. value</th></tr></thead><tbody id="prompt-rows"></tbody></table></div><div class="pagination"><span id="page-caption">No recorded requests</span><div><button id="previous" class="plain-button" disabled>← Previous</button><button id="next" class="plain-button" disabled>Next →</button></div></div></section>
+  <section id="methodology" class="methodology"><div><p class="eyebrow">KNOW WHAT YOU'RE LOOKING AT</p><h2>Useful estimates. Honest boundaries.</h2><p>These numbers compare the estimated size of retained sampled files and explicit notes with the generated handoff. They describe a possible context reduction, not observed Claude API usage or a billing refund.</p></div><div class="formula"><code>ceil(baseline bytes / 4) − ceil(handoff bytes / 4)</code><p>Negative values mean the handoff adds context. Money = net estimated tokens × your rate ÷ 1,000,000. Model responses, system/tool overhead and provider caching discounts are excluded.</p></div><div class="method-detail"><span><strong id="cache-bytes">0 B</strong> selected content rereads avoided locally</span><p>Disk-read avoidance is separate from model-token savings. Lifetime means this project since tracking began; no cross-project or past chat history is collected.</p></div></section>
+  <footer class="footer"><span><span class="footer-mark">↗</span> Pilotboard by ContextPilot</span><span id="updated" role="status">Connecting to local history…</span></footer>
+</main>
+</div>
+</body>
+</html>

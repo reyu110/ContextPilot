@@ -7,7 +7,8 @@ dependencies at zero unless there is a demonstrated maintenance benefit.
 Set up Python 3.11+ and Git, create a virtual environment, install `.[test]`, then
 run `python -m pytest`. Read [AGENTS.md](AGENTS.md) and the README privacy contract.
 Add a focused regression test for nontrivial behavior. Tests must use temporary
-directories/Git repositories and never need a network, account or credentials.
+directories/Git repositories and never need an external network, account or
+credentials. Pilotboard integration tests bind only to loopback.
 
 Changes must preserve deterministic ordering, bounded reads/exports, faithful
 ignore handling, safe paths and read-only status/resume. Do not add repository
