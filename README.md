@@ -1,59 +1,208 @@
-# ContextPilot
+![ContextPilot — close the tab, keep the thread. Local repository handoffs for Claude Code.](docs/assets/hero.svg)
 
-**Leave a useful handoff. Resume with a reality check.**
+<p align="center">
+  <a href="#quick-start"><img alt="Claude Code skill" src="https://img.shields.io/badge/Claude_Code-Skill-152936?style=flat-square&amp;labelColor=152936&amp;color=73e2c0" /></a>
+  <a href="#quick-start"><img alt="Python 3.11 or newer" src="https://img.shields.io/badge/Python-3.11%2B-152936?style=flat-square&amp;labelColor=152936&amp;color=73e2c0" /></a>
+  <a href="#privacy-and-trust"><img alt="Runs locally" src="https://img.shields.io/badge/Runtime-Local-152936?style=flat-square&amp;labelColor=152936&amp;color=73e2c0" /></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/License-MIT-152936?style=flat-square&amp;labelColor=152936&amp;color=73e2c0" /></a>
+</p>
 
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](#install)
-[![Claude Code skill](https://img.shields.io/badge/Claude_Code-skill-D97757)](#quick-start)
-[![Runtime dependencies: stdlib only](https://img.shields.io/badge/runtime-stdlib_only-2EA043)](#architecture)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+<p align="center">
+  <strong>A small local skill for the moment between “done for today” and “where was I?”</strong>
+</p>
 
-ContextPilot is a local **Claude Code skill** that saves a bounded repository
-snapshot and checks it when you return. Carry explicit tasks and decisions into
-your next session without a database, API key, or cloud service.
+<p align="center">
+  <a href="#quick-start">Install</a> ·
+  <a href="#how-it-works">Workflow</a> ·
+  <a href="#estimates-at-a-glance">Estimates</a> ·
+  <a href="examples/HANDOFF.md">Example handoff</a> ·
+  <a href="#reference">Reference</a>
+</p>
 
-| Save | Verify | Stay in control |
-| :--- | :--- | :--- |
-| Repository inventory + explicit notes | Flag stale files, Git state and handoff edits | Local artifacts, bounded reads, explicit invocation |
-
-```mermaid
-flowchart LR
-    A[Work in your repository] --> B[Snapshot]
-    B --> C[Local handoff + explicit notes]
-    C --> D[New session]
-    D --> E[Resume verification]
-    E --> F[Review changes and reconfirm tasks]
-```
-
-It complements Claude Code's `/compact`: compact manages the active conversation;
-ContextPilot stores explicit project observations and notes in your working tree
-so a later session can check and resume them. It cannot recover private session
-history or measure Claude's exact context-window usage.
-
-[Quick start](#quick-start) · [Estimates](#estimates-at-a-glance) ·
-[Architecture](#architecture) · [Privacy](#privacy-and-trust) ·
-[Example handoff](examples/HANDOFF.md)
+ContextPilot saves a bounded repository inventory and your explicit notes. When
+you return, it checks the handoff against current file metadata and Git state so
+you can spot stale information before continuing. **No account, API key, or
+runtime Python dependencies.**
 
 ## Quick start
 
-Install once, then invoke explicitly in Claude Code:
+Install for Claude Code across your projects:
 
 ```sh
 npx skills add reyu110/ContextPilot --skill contextpilot --agent claude-code --global --yes
 ```
 
-```text
-/contextpilot snapshot
-/contextpilot resume
-/contextpilot status
-```
+Then use these commands in Claude Code:
 
-Reopen Claude Code if the skill is not discovered. Requires **Python 3.11+ and
-Git** on PATH; Node.js/npm is needed only for the installer.
+| Before you leave | When you return | Just checking |
+| :--- | :--- | :--- |
+| `/contextpilot snapshot` | `/contextpilot resume` | `/contextpilot status` |
+| Save a local handoff. | Flag changes and review the next task. | Inspect the saved snapshot. |
+
+**Requires Python 3.11+ and Git on PATH.** Node.js/npm is only for installation.
+Omit `--global` for a project-only install. Reopen Claude Code if the skill is not
+listed. This public repository does not require GitHub authentication.
 
 > Snapshot writes inside `.contextpilot/` and appends `/.contextpilot/` to
 > `.gitignore`. Resume and status are read-only. Tasks never execute automatically.
 
-## Install
+## How it works
+
+![Three steps: snapshot selected files and explicit notes; retain a local handoff and integrity record; resume with metadata and Git checks, then reconfirm tasks.](docs/assets/workflow.svg)
+
+| What you keep | What gets checked | What stays yours |
+| :--- | :--- | :--- |
+| A readable handoff, repository inventory, and explicit tasks and decisions. | File metadata, Git state, handoff integrity, and coverage limits. | Your files and notes stay on your machine during skill execution. |
+
+Use it alongside Claude Code's `/compact`. Compact manages the active
+conversation; ContextPilot leaves a reviewable handoff in your working tree.
+It cannot recover private chat history, infer your intentions, or measure
+Claude's context-window utilization.
+
+## Estimates at a glance
+
+A larger scan budget means more local sampling. The numbers below make that
+tradeoff visible; **they are arithmetic illustrations, not performance claims.**
+
+![Input budgets of 16, 64, 128 and 256 KiB estimate 4,096, 16,384, 32,768 and 65,536 tokens using bytes divided by four. An illustrative full-budget scan reads 256 KiB fresh, zero selected content on a matching cache, and 256 KiB on refresh.](docs/assets/estimates.svg)
+
+The default reads up to **120 selected files**, **256 KiB total**, and **16 KiB
+per file**. Each generated scan JSON or handoff is capped at **64 KiB**. Truncation
+is reported. A matching cache skips content rereads, while directory and Git
+metadata checks still run.
+
+## Privacy and trust
+
+The skill runs locally, filters ignored and sensitive paths before sampling, and
+skips symlinks. It does not run repository scripts, export source file bodies, or
+make network requests. The `npx` installer downloads the skill; the installed
+Python runtime does not upload your repository.
+
+**Review before sharing.** Filenames, dependency signals and human notes can
+contain private information. Secret detection is heuristic. A metadata match
+cannot prove unread content is unchanged or that old tasks are still valid.
+
+## Carry decisions, not guesses
+
+The scanner cannot know what you discussed. Add only supplied or explicitly
+confirmed information to `.contextpilot/notes.json` during an explicit snapshot
+invocation. Notes survive regeneration; human claims still need reconfirmation.
+See the [note contract](.claude/skills/contextpilot/references/handoff-template.md)
+and the [generated example](examples/HANDOFF.md).
+
+## Reference
+
+The short path is above. The implementation details are here when you need them.
+
+<details>
+<summary><strong>Notes schema and validation</strong></summary>
+
+The scanner cannot know conversations or intentions. Before an explicit snapshot,
+put only supplied or confirmed information in `.contextpilot/notes.json`:
+
+```json
+{
+  "objectives": [{"text": "Finish the import command", "source": "user"}],
+  "decisions": [{"text": "Keep storage as local JSON", "source": "confirmed"}],
+  "completed": [{"text": "Parser implementation reviewed", "source": "user"}],
+  "tasks": [{"text": "Add malformed input coverage", "source": "user"}],
+  "blockers": [],
+  "next_steps": []
+}
+```
+
+All sections are optional. Sources are `user`, `confirmed`, and `assumption`;
+decisions require `confirmed`, meaning explicit human confirmation. The tool
+validates this label but cannot authenticate who confirmed a note. Empty sections
+remain explicitly unknown. Maximum: 32 KiB notes file, 50 notes per section,
+1000 characters per note. Notes are preserved across snapshots. Edit notes rather
+than the generated handoff to carry changes into the next snapshot. See the
+[handoff contract](.claude/skills/contextpilot/references/handoff-template.md).
+
+</details>
+
+<details>
+<summary><strong>Scan limits, estimate arithmetic, and cache behavior</strong></summary>
+
+| Boundary | Default size | Rough token equivalent |
+| :--- | ---: | ---: |
+| Sample from one selected file | Up to 16 KiB | 4,096 |
+| Total selected file content per scan | Up to 256 KiB | 65,536 |
+| Each generated scan JSON or handoff | Up to 64 KiB | 16,384 |
+
+Input samples are inspected locally; source file bodies are not exported. Output
+is metadata, coverage, labels and explicit notes. The input and output estimates
+describe different data and cannot establish a compression ratio or token savings.
+The snapshot CLI's output estimate combines scan JSON and handoff bytes.
+
+| Flag | Default | Meaning |
+| --- | ---: | --- |
+| `--max-files` | 120 | Maximum selected file read attempts; also caps Git change entries |
+| `--max-bytes` | 262144 | Total selected file-content bytes read per scan |
+| `--max-file-bytes` | 16384 | Maximum bytes read from each selected file |
+| `--max-candidates` | 20000 | Eligible discovered file entries examined before stopping traversal |
+| `--max-output-bytes` | 65536 | UTF-8 bytes per scan JSON or handoff/continuation output; minimum 4096 |
+
+These limits apply to scanner content and generated output, not operating system
+directory listings or Git subprocess metadata. Notes and previous handoffs have
+separate fixed read limits. Git commands have a 15-second timeout. Very large
+worktrees may still incur directory/Git inspection cost. Truncation is reported;
+lower-ranked detail is dropped while handoff section headings remain present.
+
+Every scan checks file names, sizes, nanosecond mtimes, limits and Git metadata.
+If their fingerprint matches the previous snapshot, content reads are reused.
+This avoids rereading unchanged files, not directory traversal. Status avoids
+traversal entirely. `snapshot --refresh` forces selected content reads. Resume
+does not save its fresh scan. All scans include approximate input bytes/tokens;
+snapshot CLI output also reports artifact bytes and approximate output tokens.
+The estimate is bytes / 4, not a tokenizer or a claim about model utilization.
+
+</details>
+
+<details>
+<summary><strong>Architecture and local artifact layout</strong></summary>
+
+| Mode | Reads | Writes |
+| :--- | :--- | :--- |
+| `snapshot` | Bounded repository selection + explicit notes | Local artifacts + root ignore rule |
+| `resume` | Saved handoff + current bounded scan | Nothing |
+| `status` | Saved scan metadata | Nothing |
+
+- `scan.py` owns deterministic discovery, privacy filtering, Git inspection,
+  prioritization, bounded text reads, cache fingerprints and confined artifact I/O.
+- `snapshot.py` owns note validation, labeled Markdown, one-generation backup,
+  resume comparison and CLI modes. No repository code is imported or executed.
+- The skill bundle is self-contained, so `${CLAUDE_SKILL_DIR}` works after copying
+  it globally or into another project. The project requires no Python package import.
+
+Ranking favors README/architecture docs, manifests, filename-based entry points,
+changed files, source files and tests, with path depth penalties and lexical
+tie-breaking. Framework signals are dependency word matches in selected manifests;
+they are not proof a framework is actually used. Architecture output is a structural
+inventory, not a model-generated explanation of runtime behavior.
+
+Snapshots include overview, architecture, important files/directories, objectives,
+confirmed decisions, completed work, unfinished tasks, Git changes, blockers and
+next steps. Observed metadata, user notes, confirmed notes and assumptions have
+distinct labels. See the real generated [example](examples/HANDOFF.md).
+
+### What stays on disk
+
+```text
+.contextpilot/                  # Ignored by Git
+├── HANDOFF.md                  # Human-readable handoff
+├── HANDOFF.previous.md         # One previous handoff, after a repeat snapshot
+├── scan.json                   # Selected file metadata and scan coverage
+├── snapshot.json               # Fingerprint and handoff integrity record
+└── notes.json                  # Optional, explicitly supplied notes
+```
+
+</details>
+
+<details>
+<summary><strong>Manual installation and CLI commands</strong></summary>
+
+### Install
 
 Python 3.11+ must be available as `python3`, and Git must be on PATH, including
 when inspecting a project that has never been initialized with Git.
@@ -86,7 +235,7 @@ for direct CLI commands. Claude must have permission to run Python and Git.
 Reopen Claude Code if the skill is not discovered. No pip install is required
 for the skill; installing the Python project alone does not install the skill.
 
-## Use in Claude Code
+### Use in Claude Code
 
 ```text
 /contextpilot snapshot
@@ -122,147 +271,10 @@ The last command prints JSON to stdout and writes nothing. Errors return exit
 code 2 with an explanation on stderr. Redirecting stdout is your responsibility;
 the tool provides no arbitrary artifact output-path option.
 
-## Preserve decisions and tasks
+</details>
 
-The scanner cannot know conversations or intentions. Before an explicit snapshot,
-put only supplied or confirmed information in `.contextpilot/notes.json`:
-
-```json
-{
-  "objectives": [{"text": "Finish the import command", "source": "user"}],
-  "decisions": [{"text": "Keep storage as local JSON", "source": "confirmed"}],
-  "completed": [{"text": "Parser implementation reviewed", "source": "user"}],
-  "tasks": [{"text": "Add malformed input coverage", "source": "user"}],
-  "blockers": [],
-  "next_steps": []
-}
-```
-
-All sections are optional. Sources are `user`, `confirmed`, and `assumption`;
-decisions require `confirmed`, meaning explicit human confirmation. The tool
-validates this label but cannot authenticate who confirmed a note. Empty sections
-remain explicitly unknown. Maximum: 32 KiB notes file, 50 notes per section,
-1000 characters per note. Notes are preserved across snapshots. Edit notes rather
-than the generated handoff to carry changes into the next snapshot. See the
-[handoff contract](.claude/skills/contextpilot/references/handoff-template.md).
-
-## Architecture
-
-```mermaid
-flowchart TD
-    A[Explicit /contextpilot invocation] --> B[SKILL.md]
-    B --> C[snapshot.py]
-    C --> D{Mode}
-    D -->|snapshot| E[scan.py: filter, rank, sample]
-    E --> F[Validate and preserve notes]
-    F --> G[Write local snapshot artifacts]
-    D -->|resume| H[Saved handoff + current bounded scan]
-    H --> I[Read-only verification summary]
-    D -->|status| J[Read saved scan metadata]
-    J --> K[Read-only status]
-    style G fill:#dcfce7,stroke:#15803d,color:#14532d
-    style I fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
-    style K fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
-```
-
-- `scan.py` owns deterministic discovery, privacy filtering, Git inspection,
-  prioritization, bounded text reads, cache fingerprints and confined artifact I/O.
-- `snapshot.py` owns note validation, labeled Markdown, one-generation backup,
-  resume comparison and CLI modes. No repository code is imported or executed.
-- The skill bundle is self-contained, so `${CLAUDE_SKILL_DIR}` works after copying
-  it globally or into another project. The project requires no Python package import.
-
-Ranking favors README/architecture docs, manifests, filename-based entry points,
-changed files, source files and tests, with path depth penalties and lexical
-tie-breaking. Framework signals are dependency word matches in selected manifests;
-they are not proof a framework is actually used. Architecture output is a structural
-inventory, not a model-generated explanation of runtime behavior.
-
-Snapshots include overview, architecture, important files/directories, objectives,
-confirmed decisions, completed work, unfinished tasks, Git changes, blockers and
-next steps. Observed metadata, user notes, confirmed notes and assumptions have
-distinct labels. See the real generated [example](examples/HANDOFF.md).
-
-### What stays on disk
-
-```text
-.contextpilot/                  # Ignored by Git
-├── HANDOFF.md                  # Human-readable handoff
-├── HANDOFF.previous.md         # One previous handoff, after a repeat snapshot
-├── scan.json                   # Selected file metadata and scan coverage
-├── snapshot.json               # Fingerprint and handoff integrity record
-└── notes.json                  # Optional, explicitly supplied notes
-```
-
-## Estimates at a glance
-
-The scanner uses **`ceil(bytes / 4)`** as a rough token estimate. The chart below
-shows arithmetic at four hypothetical input read budgets, assuming each budget
-is fully consumed. Only 256 KiB is the default; these are **not benchmarks** or
-measurements of Claude's context window.
-
-```mermaid
-xychart-beta
-    title "Input budget and estimated tokens"
-    x-axis "Selected content read (KiB)" [16, 64, 128, 256]
-    y-axis "Estimated tokens (bytes / 4)" 0 --> 65536
-    bar [4096, 16384, 32768, 65536]
-```
-
-| Boundary | Default size | Rough token equivalent |
-| :--- | ---: | ---: |
-| Sample from one selected file | Up to 16 KiB | 4,096 |
-| Total selected file content per scan | Up to 256 KiB | 65,536 |
-| Each generated scan JSON or handoff | Up to 64 KiB | 16,384 |
-
-Input samples are inspected locally; source file bodies are not exported. Output
-is metadata, coverage, labels and explicit notes. The input and output estimates
-describe different data and cannot establish a compression ratio or token savings.
-The snapshot CLI's output estimate combines scan JSON and handoff bytes.
-
-### What the cache avoids
-
-For an illustrative scan that consumes the full default input budget, a matching
-cache avoids rereading selected file content. A forced refresh reads it again:
-
-```mermaid
-xychart-beta
-    title "Content reads per scan (illustrative)"
-    x-axis ["Fresh scan", "Matching cache", "Forced refresh"]
-    y-axis "Content read this run (KiB)" 0 --> 256
-    bar [256, 0, 256]
-```
-
-**Zero content rereads does not mean zero work.** Cache checks still inspect
-directory entries and Git metadata. Saved artifacts are read too. `status` skips
-repository traversal entirely. Actual runtime and model cost have not been
-benchmarked; smaller scans may read far less than these limits.
-
-## Bounds and cache
-
-| Flag | Default | Meaning |
-| --- | ---: | --- |
-| `--max-files` | 120 | Maximum selected file read attempts; also caps Git change entries |
-| `--max-bytes` | 262144 | Total selected file-content bytes read per scan |
-| `--max-file-bytes` | 16384 | Maximum bytes read from each selected file |
-| `--max-candidates` | 20000 | Eligible discovered file entries examined before stopping traversal |
-| `--max-output-bytes` | 65536 | UTF-8 bytes per scan JSON or handoff/continuation output; minimum 4096 |
-
-These limits apply to scanner content and generated output, not operating system
-directory listings or Git subprocess metadata. Notes and previous handoffs have
-separate fixed read limits. Git commands have a 15-second timeout. Very large
-worktrees may still incur directory/Git inspection cost. Truncation is reported;
-lower-ranked detail is dropped while handoff section headings remain present.
-
-Every scan checks file names, sizes, nanosecond mtimes, limits and Git metadata.
-If their fingerprint matches the previous snapshot, content reads are reused.
-This avoids rereading unchanged files, not directory traversal. Status avoids
-traversal entirely. `snapshot --refresh` forces selected content reads. Resume
-does not save its fresh scan. All scans include approximate input bytes/tokens;
-snapshot CLI output also reports artifact bytes and approximate output tokens.
-The estimate is bytes / 4, not a tokenizer or a claim about model utilization.
-
-## Privacy and trust
+<details>
+<summary><strong>Privacy rules and trust boundaries</strong></summary>
 
 Git's ignore engine honors nested `.gitignore` rules and negations, even in
 non-Git directories via a temporary bare Git directory outside the project. If
@@ -288,7 +300,10 @@ and paths, language counts, dependency signals and human notes can themselves
 contain private information. Git ignore files/configuration are read by Git.
 The tool is not a sandbox for concurrent hostile filesystem mutation.
 
-## Limitations
+</details>
+
+<details>
+<summary><strong>Known limitations</strong></summary>
 
 - Only selected UTF-8 text files are sampled. Unread portions, unknown extensions,
   excluded paths and files beyond discovery/selection limits are not understood.
@@ -304,7 +319,10 @@ The tool is not a sandbox for concurrent hostile filesystem mutation.
 - Windows paths and process APIs are supported where practical; the current test
   run is on macOS, and Windows installations may restrict symlink creation.
 
-## Develop and test
+</details>
+
+<details>
+<summary><strong>Development and tests</strong></summary>
 
 ```sh
 python3 -m venv .venv
@@ -318,7 +336,10 @@ projects, ignore rules, secrets/binaries, symlinks, Unicode, missing files, larg
 inventories, snapshot notes/backups, resume/cache, limits and skill frontmatter.
 No API key or network is required to run tests once pytest is installed.
 
-## Troubleshooting
+</details>
+
+<details>
+<summary><strong>Troubleshooting</strong></summary>
 
 - **Skill not listed:** copy the directory, not just SKILL.md; confirm the path is
   `~/.claude/skills/contextpilot/SKILL.md` or the project's equivalent and reopen
@@ -338,9 +359,10 @@ No API key or network is required to run tests once pytest is installed.
 - **Output truncated:** increase limits deliberately. Broadening discovery also
   broadens private metadata exposure. Check Coverage and size and scanner warnings.
 
-## Possible version 0.2 work
+</details>
 
-User-configurable exclusion rules with privacy floors, manifest-aware declared
-entry points, richer deterministic architecture signals, incremental per-file
-content caching, crash-consistent snapshot generations, and Windows/Linux CI.
-These are recommendations, not implemented features.
+---
+
+Built with Python's standard library. Distributed under the [MIT license](LICENSE).
+[Contributions](CONTRIBUTING.md) are welcome; keep changes small, local, and honest
+about what the scanner can verify.

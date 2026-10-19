@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
+  <title id="title">ContextPilot — close the tab, keep the thread</title>
+  <desc id="desc">Local repository handoffs for Claude Code. Save a bounded snapshot, verify changes and reconfirm your next task.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#101e2a"/><stop offset="1" stop-color="#102e30"/></linearGradient>
+    <linearGradient id="line"><stop stop-color="#73e2c0"/><stop offset="1" stop-color="#73e2c0" stop-opacity="0"/></linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#d4f0e6" stroke-opacity=".045"/></pattern>
+  </defs>
+  <rect width="1200" height="500" rx="24" fill="url(#bg)"/>
+  <rect width="1200" height="500" rx="24" fill="url(#grid)"/>
+  <path d="M60 440H1140" stroke="url(#line)"/>
+  <g font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif">
+    <g transform="translate(60 49)">
+      <rect width="38" height="38" rx="11" fill="#73e2c0"/>
+      <path d="M11 26V12h16M11 26l16-14M18 26h9v-9" fill="none" stroke="#10282a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="53" y="28" fill="#eff7f4" font-size="29" font-weight="700" letter-spacing="-.8">ContextPilot</text>
+      <text x="1078" y="25" text-anchor="end" fill="#9ab9b5" font-size="15" letter-spacing="2">CLAUDE CODE / LOCAL SKILL</text>
+    </g>
+    <text x="60" y="174" fill="#f4f7f3" font-size="65" font-weight="750" letter-spacing="-2.6">Close the tab.</text>
+    <text x="60" y="247" fill="#73e2c0" font-size="65" font-weight="750" letter-spacing="-2.6">Keep the thread.</text>
+    <text x="63" y="298" fill="#b6c9c7" font-size="22">A repository handoff your next session can verify.</text>
+    <g font-size="15" font-weight="650" letter-spacing="1.2">
+      <circle cx="71" cy="365" r="11" fill="#73e2c0"/>
+      <path d="m66 365 3 3 6-7" fill="none" stroke="#10282a" stroke-width="2"/>
+      <text x="92" y="371" fill="#d9e7e2">SNAPSHOT</text>
+      <path d="M201 365h34" stroke="#6c9188"/>
+      <text x="256" y="371" fill="#d9e7e2">VERIFY</text>
+      <path d="M335 365h34" stroke="#6c9188"/>
+      <text x="390" y="371" fill="#d9e7e2">RECONFIRM</text>
+    </g>
+    <g transform="translate(777 130)">
+      <rect x="20" y="-14" width="315" height="266" rx="16" fill="#456e63"/>
+      <rect x="10" y="-7" width="315" height="266" rx="16" fill="#9dc4af"/>
+      <rect width="315" height="266" rx="16" fill="#edf3e8"/>
+      <path d="M0 59h315" stroke="#cedaca"/>
+      <rect x="23" y="20" width="17" height="21" rx="3" fill="none" stroke="#456651" stroke-width="1.5"/>
+      <text x="53" y="36" fill="#254737" font-size="17" font-family="'SFMono-Regular', Consolas, monospace" font-weight="600">HANDOFF.md</text>
+      <circle cx="283" cy="30" r="5" fill="#3e8663"/>
+      <text x="24" y="98" fill="#244436" font-size="21" font-weight="700">Ready for your return.</text>
+      <g fill="#536a59" font-size="17">
+        <text x="43" y="138">Repository inventory</text>
+        <text x="43" y="173">Explicit tasks and decisions</text>
+        <text x="43" y="208">Coverage and integrity</text>
+      </g>
+      <g fill="#3e8663"><circle cx="28" cy="132" r="3"/><circle cx="28" cy="167" r="3"/><circle cx="28" cy="202" r="3"/></g>
+      <text x="24" y="244" fill="#70806e" font-size="13" letter-spacing="1.1">LOCAL FILES. EXPLICIT NOTES.</text>
+    </g>
+    <g fill="#91b4aa" font-size="13" letter-spacing="1.8">
+      <text x="62" y="472">LOCAL BY DEFAULT</text><text x="299" y="472">BOUNDED READS</text><text x="512" y="472">NO API KEYS</text>
+      <text x="1138" y="472" text-anchor="end" fill="#73e2c0">LESS REORIENTING. MORE BUILDING.</text>
+    </g>
+  </g>
+</svg>

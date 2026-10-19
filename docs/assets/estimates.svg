@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="628" viewBox="0 0 1200 628" role="img" aria-labelledby="title desc">
+  <title id="title">Bounded by design: input estimates and cache behavior</title>
+  <desc id="desc">At fully consumed input budgets of 16, 64, 128 and 256 KiB, bytes divided by four estimates 4096, 16384, 32768 and 65536 tokens. For an illustrative full-budget scan, a fresh scan or refresh reads 256 KiB of selected content; a matching cache rereads zero. These are arithmetic examples, not runtime or cost benchmarks.</desc>
+  <rect width="1200" height="628" rx="22" fill="#101e2a"/>
+  <g font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif">
+    <text x="36" y="54" fill="#f2f6f3" font-size="32" font-weight="700" letter-spacing="-.8">Bounded by design.</text>
+    <text x="36" y="89" fill="#a7bfc1" font-size="19">Local sampling budgets. Explicit limits. Clear estimates.</text>
+    <rect x="32" y="118" width="700" height="420" rx="16" fill="#162936" stroke="#2b414c"/>
+    <rect x="756" y="118" width="412" height="420" rx="16" fill="#162936" stroke="#2b414c"/>
+    <text x="60" y="158" fill="#ecf3f0" font-size="21" font-weight="650">INPUT BUDGET → ROUGH TOKEN ESTIMATE</text>
+    <text x="60" y="187" fill="#91acb1" font-size="17">Assumes the selected read budget is fully consumed.</text>
+    <g stroke="#29414c" stroke-dasharray="3 5"><path d="M193 209v258"/><path d="M305 209v258"/><path d="M417 209v258"/><path d="M529 209v258"/><path d="M641 209v258"/></g>
+    <g fill="#c0d0d1" font-size="20"><text x="60" y="242">16 KiB</text><text x="60" y="312">64 KiB</text><text x="60" y="382">128 KiB</text><text x="60" y="452">256 KiB</text></g>
+    <g fill="#467b78"><rect x="193" y="220" width="28" height="30" rx="5"/><rect x="193" y="290" width="112" height="30" rx="5"/><rect x="193" y="360" width="224" height="30" rx="5"/></g>
+    <rect x="193" y="430" width="448" height="30" rx="5" fill="#73e2c0"/>
+    <g fill="#e0ece8" font-size="19" font-weight="600"><text x="234" y="242">4,096</text><text x="318" y="312">16,384</text><text x="430" y="382">32,768</text><text x="654" y="452" font-size="15">65,536</text></g>
+    <text x="60" y="505" fill="#73e2c0" font-size="16">Default: 256 KiB total · 16 KiB per selected file</text>
+    <text x="784" y="158" fill="#ecf3f0" font-size="21" font-weight="650">WHAT THE CACHE SKIPS</text>
+    <text x="784" y="187" fill="#91acb1" font-size="17">Selected content reads per run, KiB</text>
+    <g fill="#c0d0d1" font-size="18"><text x="784" y="239">Fresh scan</text><text x="784" y="324">Matching cache</text><text x="784" y="409">Forced refresh</text></g>
+    <g fill="#467b78"><rect x="784" y="252" width="302" height="20" rx="4"/><rect x="784" y="422" width="302" height="20" rx="4"/></g>
+    <circle cx="788" cy="347" r="4" fill="#73e2c0"/>
+    <g fill="#ecf3f0" font-size="19" font-weight="600"><text x="1100" y="270">256</text><text x="810" y="354" fill="#73e2c0">0 content rereads</text><text x="1100" y="440">256</text></g>
+    <text x="784" y="493" fill="#91acb1" font-size="16">Illustrative full-budget scan.</text>
+    <text x="784" y="519" fill="#91acb1" font-size="16">Directory and Git metadata still checked.</text>
+    <path d="M36 565h1128" stroke="#2b414c"/>
+    <text x="36" y="600" fill="#91acb1" font-size="17">Estimate = ceil(bytes / 4). Not Claude token counts, context utilization, or measured cost savings.</text>
+  </g>
+</svg>
