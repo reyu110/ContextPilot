@@ -203,7 +203,7 @@ measurements of Claude's context window.
 
 ```mermaid
 xychart-beta
-    title "Approximate input tokens at a fully consumed read budget"
+    title "Input budget and estimated tokens"
     x-axis "Selected content read (KiB)" [16, 64, 128, 256]
     y-axis "Estimated tokens (bytes / 4)" 0 --> 65536
     bar [4096, 16384, 32768, 65536]
@@ -227,7 +227,7 @@ cache avoids rereading selected file content. A forced refresh reads it again:
 
 ```mermaid
 xychart-beta
-    title "Selected file-content reads: illustrative full-budget scan"
+    title "Content reads per scan (illustrative)"
     x-axis ["Fresh scan", "Matching cache", "Forced refresh"]
     y-axis "Content read this run (KiB)" 0 --> 256
     bar [256, 0, 256]
