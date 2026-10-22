@@ -28,6 +28,35 @@ function emptyRow(columns, text) {
   const tr = node("tr"); const td = node("td", text); td.colSpan = columns; tr.append(td); return tr;
 }
 
+function updateInvocation(check = false) {
+  const name = data?.agent === "codex" ? "$contextpilot" : data?.optimizer?.status?.mode === "plugin" ? "/contextpilot:contextpilot" : "/contextpilot";
+  return name + " update" + (check ? " check" : "");
+}
+
+function renderUpdates() {
+  const update = data.updates || {}, state = update.state;
+  const labels = {available:"Update available",current:"Up to date",ahead:"Local version ahead",unchecked:"Not checked yet",unavailable:"Check unavailable",stale:"Saved check is stale"};
+  set("update-state",labels[state] || "Unavailable");
+  $("update-state").className = "status-pill " + (state === "available" ? "ready" : "neutral");
+  $("update-state").closest("section").classList.toggle("update-available",state === "available");
+  set("update-note", "Installed: " + (update.installed || "unavailable") + " · Latest observed: " + (update.latest || "unknown") + (update.checked_at ? " · Checked " + new Date(update.checked_at*1000).toLocaleString() : "") + (update.stale && update.latest ? " · historical observation" : "") + ". " + (update.warning || "") + (update.automatic_checks === false ? " Automatic checks are disabled." : " Active plugin hooks check at most daily; skill-only installs need an explicit check.") + " This read-only dashboard never contacts GitHub or installs updates.");
+  renderUpdateCommand();
+}
+
+function renderUpdateCommand() {
+  const recipe = data?.updates?.commands?.[$("update-installation").value];
+  set("update-terminal",recipe?.command || "Choose an installation type to see its command.");
+  set("update-terminal-note",recipe?.note || "The dashboard only displays instructions. Updates require an explicit command in your agent or terminal.");
+}
+
+async function copyUpdateCommand(check) {
+  const command = updateInvocation(check);
+  try {
+    await navigator.clipboard.writeText(command);
+    set("update-copy-note","Copied " + command + ". Paste it into your agent chat.");
+  } catch { set("update-copy-note","Run in your agent chat: " + command); }
+}
+
 function sessionOptions() {
   const options = [new Option("All sessions", "")];
   const sessions = [...data.sessions, ...(data.optimizer?.report?.sessions || [])];
@@ -70,6 +99,14 @@ function renderMetrics() {
 }
 
 function renderOptimizer() {
+  const codex = data.agent === "codex";
+  $("claude-native-panel").hidden = codex; $("claude-native-details").hidden = codex;
+  set("optimizer-title", codex ? "Codex context support" : "Automatic context optimizer");
+  set("agent-intro",codex ? "Bounded handoffs. Trusted lifecycle support. Clear estimates." : "Automatic optimization. Clear estimates. Every reduction accounted for.");
+  set("handoff-scope",codex ? "Project-wide snapshot history shared with Claude Code. These what-if scenarios are separate from Codex hook overhead above." : "Sampled files compared with their handoff. These estimates are never added to live optimizer reductions.");
+  set("live-actions-note",codex ? "Guidance, retry notices and pre-compaction checkpoints" : "Filters, guidance, checkpoints and native observations");
+  set("audit-scope",codex ? "Non-destructive review of root AGENTS.md and AGENTS.override.md" : "Non-destructive review of root instructions and .claude/rules");
+  set("checkpoint-help",codex ? "Trusted Codex plugin hooks save a bounded repository checkpoint before compaction. Skill-only installs can use $contextpilot snapshot. Snapshot history is shared within this project; optimizer history is separate for each agent." : "The plugin saves repository checkpoints before compaction and at session end. Standalone users can run /contextpilot snapshot. Earlier usage is not reconstructed.");
   const optimizer = data.optimizer, report = optimizer?.report;
   if (!report || optimizer.error) {
     for (const id of ["live-net", "live-value", "live-selected", "live-actions", "native-context", "native-five", "native-week", "native-input", "native-output", "native-cache-read", "native-cache-write", "native-window", "native-cost"]) set(id, "—");
@@ -93,6 +130,7 @@ function renderOptimizer() {
   set("optimizer-health", state.warning ? "Needs attention" : !state.enabled ? "Not active" : recent ? "Recent hook activity" : "Configured · awaiting activity");
   $("optimizer-health").className = "status-pill " + (state.enabled && recent ? "ready" : "neutral");
   set("optimizer-health-note", state.warning || (state.enabled ? (state.mode === "plugin" ? "Plugin startup is configured. " : "Project-local hooks are configured. ") + "Last activity: " + (report.last_activity ? new Date(report.last_activity * 1000).toLocaleString() : "not yet observed") + ". Configuration alone does not prove hooks are running in your current chat." : "Automatic startup requires the ContextPilot plugin. Existing standalone installations keep their explicit auto controls. Previously recorded history remains available."));
+  if (codex) set("optimizer-health-note",state.warning || "Codex lifecycle support " + (state.enabled ? "is configured" : "is paused or has not started") + ". Last recorded activity: " + (report.last_activity ? new Date(report.last_activity*1000).toLocaleString() : "none") + ". Install the plugin and review/trust its hooks in Codex. No Claude settings, tool output, model or reasoning preferences are changed. Configuration does not prove current-session hook acceptance.");
   for (const [id, value] of [["live-net", report.lifetime.net_tokens], ["live-selected", report.selected.net_tokens]]) { set(id, signed(value)); $(id).closest("article").classList.toggle("negative", value < 0); }
   set("live-value", amount(report.lifetime.net_tokens)); $("live-value").closest("article").classList.toggle("negative", report.lifetime.net_tokens < 0);
   set("live-selected-note", (data.selected_session ? trim(data.selected_session) : "All sessions") + " · " + number.format(report.selected.actions) + " actions");
@@ -156,7 +194,8 @@ function renderAudit(report) {
 function renderFeatures(report, state) {
   const rows = report.features.map(feature => {
     let availability;
-    if (feature.mode === "recommendation") availability = "Recommendation";
+    if (feature.mode === "unavailable") availability = "Not supported by Codex adapter";
+    else if (feature.mode === "recommendation") availability = "Recommendation";
     else if (feature.mode === "report") availability = "Available · read-only";
     else if (feature.id === "handoffs") availability = "Available · bounded snapshots";
     else if (feature.id === "mcp") availability = (feature.actions ? "ToolSearch call recorded · " : "") + nativeControlLabel(state.native_controls?.tool_search);
@@ -296,7 +335,7 @@ async function load() {
       }
     }
     set("project", data.project); document.title = "Pilotboard · " + data.project;
-    sessionOptions(); render(); $("error").hidden = true;
+    sessionOptions(); render(); renderUpdates(); $("error").hidden = true;
     set("updated", "Updated " + new Date().toLocaleTimeString() + " · refreshes every 15s");
   } catch (error) {
     if (error.name === "AbortError") return;
@@ -307,6 +346,9 @@ async function load() {
 function selectSession(value) { selectedSession = value; offset = 0; liveOffset = 0; $("search").value = ""; load(); }
 $("session").addEventListener("change", event => selectSession(event.target.value));
 $("refresh").addEventListener("click", load);
+$("copy-update").addEventListener("click",() => copyUpdateCommand(false));
+$("copy-update-check").addEventListener("click",() => copyUpdateCommand(true));
+$("update-installation").addEventListener("change",renderUpdateCommand);
 $("search").addEventListener("input", () => { if (data) renderPrompts(); });
 $("previous").addEventListener("click", () => { offset = Math.max(0, offset - 50); load(); });
 $("next").addEventListener("click", () => { offset += 50; load(); });

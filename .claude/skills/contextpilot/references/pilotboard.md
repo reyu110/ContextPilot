@@ -1,5 +1,16 @@
 # Pilotboard
 
+For Codex `$pilotboard` / `$contextpilot board`, resolve the bundled script from
+the installed skill catalog and pass `--agent codex`. Read `codex.md` for setup.
+Never use Claude variables or run the Claude optimizer from Codex. The Codex view
+reads its separate optimizer ledger, hides Claude native readings and labels
+unsupported filters. Snapshot scenario history is shared within the project.
+
+The update card reads installed version metadata and `.contextpilot/update-check.json`
+only. It displays last-known availability/staleness and copies chat or terminal
+instructions. It never contacts GitHub, creates an update cache, or executes an
+installer. Use the explicit check command to refresh; read `updates.md` for details.
+
 For explicit `/pilotboard` or `/contextpilot board`, start the following with
 the shell tool's background-process support so the server survives the tool call:
 

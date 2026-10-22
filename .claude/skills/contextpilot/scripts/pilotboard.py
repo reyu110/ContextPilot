@@ -16,11 +16,14 @@ from usage import empty_summary, identifier, summary
 from optimizer import totals as optimizer_totals
 from optimizer import status as optimizer_status
 from optimizer_report import report as optimizer_report
+from updates import status as update_status
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets" / "pilotboard"
 
 
-def make_server(root: Path, port: int = 0, session_id: str | None = None) -> ThreadingHTTPServer:
+def make_server(root: Path, port: int = 0, session_id: str | None = None, *, agent: str = "claude-code") -> ThreadingHTTPServer:
+    if agent not in {"claude-code","codex"}:
+        raise ValueError("Unknown dashboard agent")
     root = root.resolve(strict=True)
     if not root.is_dir():
         raise ValueError("Project root must be a directory")
@@ -71,6 +74,7 @@ def make_server(root: Path, port: int = 0, session_id: str | None = None) -> Thr
                 # An empty session value explicitly selects all sessions.
                 snapshot_offset = int(args.get("offset", ["0"])[0])
                 result = empty_summary(root, selected or None, snapshot_offset)
+                result["agent"] = agent
                 live_offset = int(args.get("live_offset", ["0"])[0])
                 if not 0 <= live_offset <= 10**9:
                     raise ValueError("Invalid live page")
@@ -79,14 +83,23 @@ def make_server(root: Path, port: int = 0, session_id: str | None = None) -> Thr
                 except (OSError, ValueError, sqlite3.Error):
                     result["snapshot_error"] = "Snapshot history could not be read. It has been preserved; live optimizer history is separate."
                 try:
-                    result["optimizer"] = optimizer_totals(root)
-                    result["optimizer"]["report"] = optimizer_report(root, selected or None, live_offset)
+                    result["agent"] = agent
+                    result["optimizer"] = optimizer_totals(root) if agent == "claude-code" else {}
+                    result["optimizer"]["report"] = optimizer_report(root, selected or None, live_offset,agent=agent)
                     try:
-                        result["optimizer"]["status"] = optimizer_status(root)
+                        if agent == "codex":
+                            from codex import status as codex_status
+                            result["optimizer"]["status"] = codex_status(root)
+                        else:
+                            result["optimizer"]["status"] = optimizer_status(root)
                     except (OSError, ValueError, sqlite3.Error):
                         result["optimizer"]["status"] = {"enabled": False, "warning": "Configuration needs inspection; history is preserved."}
                 except (OSError, ValueError, sqlite3.Error):
                     result["optimizer"] = {"error": "Optimizer history could not be read; snapshot history is still available."}
+                try:
+                    result["updates"] = update_status(root,agent=agent)
+                except (OSError,ValueError):
+                    result["updates"] = {"state":"unavailable","warning":"Update information is unavailable; other history is unaffected."}
                 self.reply(200, json.dumps(result, ensure_ascii=True).encode(), "application/json")
             except (ValueError, OverflowError):
                 self.reply(400, b"Invalid session or page")
@@ -108,11 +121,12 @@ def main() -> int:
     parser.add_argument("--session-id")
     parser.add_argument("--port", type=int, default=0, help="0 chooses an available local port")
     parser.add_argument("--no-browser", action="store_true")
+    parser.add_argument("--agent",choices=("claude-code","codex"),default="claude-code")
     args = parser.parse_args()
     if not 0 <= args.port <= 65535:
         parser.error("Port must be between 0 and 65535")
     try:
-        with make_server(args.root, args.port, args.session_id) as server:
+        with make_server(args.root, args.port, args.session_id,agent=args.agent) as server:
             print("Pilotboard: " + server.dashboard_url, flush=True)
             print("Local, read-only dashboard. Ctrl+C stops the server.", flush=True)
             if not args.no_browser:

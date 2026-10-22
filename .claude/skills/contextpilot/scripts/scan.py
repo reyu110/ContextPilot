@@ -19,7 +19,7 @@ VERSION = 1
 IGNORED_DIRS = {
     ".git", ".contextpilot", ".venv", "venv", "env", "node_modules", "__pycache__",
     ".mypy_cache", ".pytest_cache", ".ruff_cache", ".tox", ".idea", "dist", "build",
-    "coverage", ".next", ".nuxt", "vendor", "target", ".ssh", ".aws", ".gnupg",
+    "coverage", ".next", ".nuxt", "vendor", "target", ".ssh", ".aws", ".gnupg", ".codex",
 }
 LANGUAGES = {
     ".py": "Python", ".js": "JavaScript", ".jsx": "JavaScript", ".ts": "TypeScript",

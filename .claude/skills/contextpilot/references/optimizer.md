@@ -142,6 +142,13 @@ Malformed preferences show unavailable hints. No absent flag is proof of activat
 
 ## Measurements and honest limits
 
+Active SessionStart hooks may show a cached update notice, using the bounded
+metadata-only check in `updates.py` at most once per project per day. That check
+is separate from filters and never uploads project data or installs software.
+Read `updates.md` for explicit update commands and offline behavior. Existing
+native-default restart messages are preserved; update notices are user-visible
+system messages, not model context or claimed savings.
+
 Optimizer history retains hashes, opaque IDs, numeric counts/timestamps and
 documented numeric native status-line samples. It stores no prompt, command,
 source or transcript bodies. Private snapshot artifacts retain their existing

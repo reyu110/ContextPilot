@@ -1,0 +1,10 @@
+{
+  "name": "contextpilot",
+  "version": "0.3.0",
+  "description": "Local repository handoffs, trusted Codex lifecycle guidance and Pilotboard estimates.",
+  "author": {"name": "reyu110"},
+  "homepage": "https://github.com/reyu110/ContextPilot",
+  "license": "LicenseRef-Prosperity-3.0.0",
+  "skills": "./.claude/skills/",
+  "hooks": "./.claude/skills/contextpilot/hooks/codex.json"
+}

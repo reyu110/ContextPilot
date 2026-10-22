@@ -68,8 +68,10 @@ def handlers(root: Path) -> dict:
 
 
 @contextmanager
-def config_lock(root: Path):
-    path = safe_path(root, ".contextpilot/optimizer-config.lock")
+def config_lock(root: Path, *, name: str = "optimizer-config.lock"):
+    if name not in {"optimizer-config.lock","update-check.lock"}:
+        raise ValueError("Unknown ContextPilot lock")
+    path = safe_path(root, ".contextpilot/"+name)
     path.parent.mkdir(mode=0o700, exist_ok=True)
     fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0), 0o600)
     try:
@@ -287,8 +289,8 @@ def status(root: Path) -> dict:
 
 
 @contextmanager
-def history(root: Path):
-    path = database_path(root, DB)
+def history(root: Path, database_name: str = DB):
+    path = database_path(root, database_name)
     path.parent.mkdir(mode=0o700, exist_ok=True)
     fd = os.open(path, os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0), 0o600)
     os.close(fd)
@@ -518,7 +520,10 @@ def hook(root: Path, payload: dict, *, plugin: bool = False) -> dict:
     if event in {"SessionStart", "UserPromptSubmit", "PreCompact", "SessionEnd"}:
         read_hook(root, payload)
         audited = None
+        update_notice = ""
         if event == "SessionStart":
+            from updates import session_notice
+            update_notice = session_notice(root,agent="claude-code")
             from instruction_audit import audit
             try:
                 audited = audit(root)
@@ -538,6 +543,8 @@ def hook(root: Path, payload: dict, *, plugin: bool = False) -> dict:
                 result = {"hookSpecificOutput": {"hookEventName": event, "additionalContext": guidance}}
                 if restart:
                     result["systemMessage"] = "ContextPilot filters are active. New native defaults/status line load reliably after one Claude Code restart; existing preferences were preserved."
+                if update_notice:
+                    result["systemMessage"] = "\n".join(filter(None,[result.get("systemMessage"),update_notice]))
                 return result
         if event in {"PreCompact", "SessionEnd"}:
             # Repository facts and previously explicit notes only; never transcript-derived decisions.

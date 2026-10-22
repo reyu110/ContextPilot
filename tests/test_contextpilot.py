@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import re
 import subprocess
 
 import pytest
@@ -390,5 +391,7 @@ def test_frontmatter_and_skill_installation_contract() -> None:
     assert fields["name"] == "contextpilot"
     assert fields["disable-model-invocation"] == "true"
     assert fields["description"]
-    assert "${CLAUDE_SKILL_DIR}/scripts/snapshot.py" in body
+    # Both agents resolve bundled commands from the catalog's installed path.
+    commands = re.findall(r'"/installed/contextpilot/(scripts/[^"\s]+)"', body)
+    assert commands and all((skill.parent / command).is_file() for command in commands)
     assert all(word in body for word in ("snapshot", "resume", "status", "$ARGUMENTS"))

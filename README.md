@@ -1,7 +1,8 @@
-![ContextPilot — close the tab, keep the thread. Local repository handoffs for Claude Code.](docs/assets/hero.svg)
+![ContextPilot — close the tab, keep the thread. Local repository handoffs for Claude Code and Codex.](docs/assets/hero.svg)
 
 <p align="center">
   <a href="#quick-start"><img alt="Claude Code skill" src="https://img.shields.io/badge/Claude_Code-Skill-152936?style=flat-square&amp;labelColor=152936&amp;color=73e2c0" /></a>
+  <a href="#codex-support"><img alt="Codex support" src="https://img.shields.io/badge/Codex-Skill_%2B_Lifecycle-152936?style=flat-square&amp;labelColor=152936&amp;color=73e2c0" /></a>
   <a href="#quick-start"><img alt="Python 3.11 or newer" src="https://img.shields.io/badge/Python-3.11%2B-152936?style=flat-square&amp;labelColor=152936&amp;color=73e2c0" /></a>
   <a href="#privacy-and-trust"><img alt="Runs locally" src="https://img.shields.io/badge/Runtime-Local-152936?style=flat-square&amp;labelColor=152936&amp;color=73e2c0" /></a>
   <a href="LICENSE"><img alt="Prosperity Public License 3.0.0" src="https://img.shields.io/badge/License-Prosperity_3.0.0-152936?style=flat-square&amp;labelColor=152936&amp;color=73e2c0" /></a>
@@ -28,44 +29,206 @@ runtime Python dependencies.**
 
 ## Quick start
 
-For **automatic optimization from session startup**, install the Claude Code
-plugin once (Claude Code 2.1.303+, Python 3.11+ and Git):
+### 1. Check the requirements
+
+You need **Python 3.11+**, **Git**, and an installed Claude Code or Codex client.
+No pip packages or API key are needed for ContextPilot itself.
+
+Run these in your **terminal**, not in the agent chat:
+
+```sh
+python3 --version
+git --version
+```
+
+For an `npx` install, you also need **Node.js/npm** (`node --version` and
+`npm --version`). The plugin install does not require Node.js. This repository is
+public, so downloading it does not require GitHub sign-in.
+
+### 2. Choose your setup
+
+**Choose one install method per agent.** You do not need both the plugin and the
+standalone skills in the same agent.
+
+| I want… | Use this setup | What starts automatically? |
+| :--- | :--- | :--- |
+| Claude Code with automatic context optimization | [Claude Code plugin](#claude-code-plugin-recommended) | Supported optimizations start with each session |
+| Claude Code with short `/contextpilot` and `/pilotboard` commands | [Claude Code standalone skills](#claude-code-standalone-skills) | Manual commands first; enable hooks once per project if wanted |
+| Codex handoffs and dashboard | [Codex setup](#codex-support) | Manual commands first; trusted plugin hooks are a separate optional setup |
+
+### Claude Code plugin (recommended)
+
+**Install once in your terminal.** Requires Claude Code **2.1.303+**
+(`claude --version`):
 
 ```sh
 claude plugin install contextpilot --marketplace reyu110/ContextPilot
 ```
 
-Restart Claude Code. The plugin starts eligible optimizations automatically in
-each project; there is no per-project `auto on` step. On its first startup it
-registers missing native defaults locally; one additional restart loads those
-defaults reliably. Existing preferences, selected models and status lines win.
-Plugin commands are namespaced: **`/contextpilot:pilotboard`** and
-**`/contextpilot:contextpilot status`**. Claude owns this namespacing.
+**Restart Claude Code, then open your project.** Supported optimizations start
+automatically; you do not need `auto on`. On the first session, ContextPilot adds
+missing native defaults to local settings. If it shows a restart notice, restart
+once more to load those defaults. Existing preferences, selected models and status
+lines are preserved.
 
-For the standalone `/contextpilot` and `/pilotboard` commands instead:
+**Verify in the Claude Code chat:**
 
-```sh
-npx skills add reyu110/ContextPilot --skill contextpilot --skill pilotboard --agent claude-code --global --yes
+```text
+/contextpilot:contextpilot auto status
 ```
 
-Then use these commands in Claude Code:
+This reports the saved configuration. To inspect recorded activity, open
+**`/contextpilot:pilotboard`** and work normally; an empty history is expected
+before eligible activity is recorded. The dashboard does not need to stay open.
 
-| Before you leave | When you return | Just checking |
+### Claude Code standalone skills
+
+**Alternative to the plugin:** install both short commands in your terminal:
+
+```sh
+npx skills@latest add reyu110/ContextPilot --skill contextpilot --skill pilotboard --agent claude-code --global --yes
+```
+
+`--global` makes the skills available across your projects. For just one project,
+run the command from that project's folder and omit `--global`.
+
+**Reopen Claude Code**, open your project, and run `/contextpilot status` in chat.
+“No snapshot” is normal on a new project; `/contextpilot snapshot` creates one.
+Open **`/pilotboard`** for the dashboard.
+
+Installing skills alone does **not** enable automatic optimization. To enable it,
+use Claude Code 2.1.303+ and run this **once per project in chat**, then restart:
+
+```text
+/contextpilot auto on
+```
+
+### 3. Use it in your project
+
+These commands go in your **agent chat**, with the project open:
+
+| Action | Claude plugin | Claude standalone | Codex |
+| :--- | :--- | :--- | :--- |
+| Save a handoff before leaving | `/contextpilot:contextpilot snapshot` | `/contextpilot snapshot` | `$contextpilot snapshot` |
+| Check the handoff when returning | `/contextpilot:contextpilot resume` | `/contextpilot resume` | `$contextpilot resume` |
+| Inspect the saved handoff | `/contextpilot:contextpilot status` | `/contextpilot status` | `$contextpilot status` |
+| Open the local dashboard | `/contextpilot:pilotboard` | `/pilotboard` | `$pilotboard` |
+
+Snapshots save inside `.contextpilot/` and add its ignore rule. Resume and status
+are read-only. An empty dashboard is normal until activity is recorded; opening
+it does not enable optimization or create a snapshot. Values are labeled estimates,
+not verified billing savings.
+
+If a command is missing, reopen the agent and check that you installed for the
+correct agent and scope. If Python or Git is missing, install it and restart the
+agent so its terminal can find it. See [manual installation](#reference) for
+copy-based installation and Windows CLI notes.
+
+## Update notifications
+
+Active plugin sessions check for a newer ContextPilot version at startup, at most
+once per project per day. A new version produces a visible notice once per agent
+per version. Pilotboard shows your installed version, latest observed version,
+last check time, and copyable update commands. It labels offline and stale results
+instead of assuming you are up to date.
+
+| Action | Claude Code | Codex |
 | :--- | :--- | :--- |
-| `/contextpilot snapshot` | `/contextpilot resume` | `/contextpilot status` |
-| Save a local handoff. | Flag changes and review the next task. | Inspect the saved snapshot. |
+| Check now | `/contextpilot update check` | `$contextpilot update check` |
+| Install an update | `/contextpilot update` | `$contextpilot update` |
+| Read cached status | `/contextpilot update status` | `$contextpilot update status` |
 
-**Requires Python 3.11+ and Git on PATH.** Node.js/npm is only for installation.
-Omit `--global` for a project-only install. Reopen Claude Code if the skill is not
-listed. This public repository does not require GitHub authentication.
+Claude plugin commands use `/contextpilot:contextpilot` instead. The update skill
+uses the existing install type and scope: npx skills, Claude plugin, or Codex
+plugin. It never installs merely because an update is available. Restart after
+updating; Codex may require reviewing changed hooks. Codex marketplace refresh is
+followed by updating the installed copy in `/plugins`; local sources need their
+source checkout/copy updated first.
 
-> Standalone snapshot writes inside `.contextpilot/` and appends its ignore rule.
-> Plugin startup also merges owned native defaults into local Claude settings;
-> checkpoints run before compaction and at session end. Resume and status stay
-> read-only. ContextPilot never executes project tasks or scripts itself.
+Skill-only installs without hooks need an explicit check. Older versions need one
+manual upgrade before they can show notices. Set `CONTEXTPILOT_UPDATE_CHECK=0` to
+disable automatic checks. Checks fetch only a fixed public version file, never
+project content. Pilotboard/status reads remain offline and read-only. See the
+[update contract](.claude/skills/contextpilot/references/updates.md) for commands,
+privacy and release-channel limitations.
 
-Open the localhost dashboard with **`/pilotboard`**. Installing both skills gives
-you the short alias; `/contextpilot board` works with the main skill alone.
+## Codex support
+
+### Install the skills
+
+Run this in your **terminal** (Python 3.11+, Git and Node.js/npm required):
+
+```sh
+npx skills@latest add reyu110/ContextPilot --skill contextpilot --skill pilotboard --agent codex --global --yes
+```
+
+`--global` installs across your projects. Omit it from inside a project folder for
+a project-only install. **Reopen Codex**, open your project, and run these in chat:
+
+```text
+$contextpilot status
+$contextpilot snapshot
+$pilotboard
+```
+
+The first command may report no saved handoff; the second creates one, and the
+third opens the local dashboard. Later, use **`$contextpilot resume`** to check the
+handoff before continuing. Both agents share the project's bounded handoffs and
+snapshot scenario history. The runtime generates handoffs without a model call;
+the surrounding agent conversation still uses its normal allowance.
+
+### Optional: automatic Codex lifecycle support
+
+**The `npx` command installs skills, not hooks.** For automatic session guidance,
+retry warnings and pre-compaction checkpoints, use the plugin in a supported local
+Codex client. Clients without local lifecycle hooks keep the manual commands above.
+
+<details>
+<summary><strong>Set up the Codex plugin instead of standalone skills</strong></summary>
+
+With a Codex CLI that supports `codex plugin`, run in your terminal:
+
+```sh
+codex plugin marketplace add reyu110/ContextPilot
+codex plugin add contextpilot@contextpilot
+```
+
+Restart Codex, confirm ContextPilot is enabled in `/plugins`, then open `/hooks`
+to review and trust its definitions. **Installing/enabling the plugin does not
+trust its hooks.** Start a new session in your project after accepting them.
+
+Run `$contextpilot auto status` to inspect the saved pause state, then `$pilotboard`
+to inspect recorded activity. Configuration alone does not prove hooks ran.
+See the [local-checkout setup](.claude/skills/contextpilot/references/codex.md#automatic-lifecycle-support)
+and [official plugin guidance](https://developers.openai.com/plugins/build/plugins)
+if your client uses a different installation surface. Do not bypass hook trust.
+
+</details>
+
+Its `.codex-plugin/plugin.json` selects a separate adapter:
+
+| Capability | Codex |
+| :--- | :--- |
+| Snapshots, verified resume/status, local dashboard | Shared, supported |
+| Session-start efficiency guidance | Automatic after plugin hook trust |
+| Root instruction audit | Automatic; `AGENTS.md` and `AGENTS.override.md` only |
+| Retry warnings | Automatic for repeated Bash/apply_patch inputs in one turn |
+| Repository checkpoint before compaction | Automatic, preserving explicit notes |
+| Shutdown checkpoints | Manual snapshot; no scan during the short shutdown deadline |
+| Automatic Read/Grep limits, deduplication and terminal compression | Claude adapter only |
+| Native usage, allowance/cost sampling and settings defaults | Claude adapter only |
+
+Codex support never modifies `.codex/config.toml`, `.codex/hooks.json`, Claude
+settings, selected models, effort or permissions. Pause/resume trusted hooks with
+`$contextpilot auto off` / `$contextpilot auto on`; this changes only the local
+pause state and does not install or trust hooks. `.codex/` is excluded before
+discovery to protect local settings, session history and credentials.
+
+Pilotboard's Codex view uses `--agent codex`, separates Codex receipts from Claude
+history, hides Claude-only native readings, and labels unsupported filters.
+Guidance consumes context and is recorded as overhead; it is not claimed as saved
+tokens. Cloud orchestration and clients without trusted local hooks retain the
+explicit skills only. See the [Codex setup and coverage contract](.claude/skills/contextpilot/references/codex.md).
 
 ## How it works
 
@@ -228,8 +391,10 @@ metadata checks still run.
 ## Privacy and trust
 
 The skill runs locally, filters ignored and sensitive paths before sampling, and
-skips symlinks. It does not run repository scripts, export source file bodies, or
-make external network requests. The `npx` installer downloads the skill;
+skips symlinks. It does not run repository scripts or export source file bodies.
+The updater's only network request fetches a fixed public version file; it sends
+no project content or credentials. Snapshot, resume and status do not contact
+external services. The `npx` installer downloads the skill;
 Pilotboard serves numeric estimates over authenticated loopback HTTP. The
 installed Python runtime does not upload your repository.
 
@@ -333,6 +498,10 @@ SQLite is part of Python's standard library; there are no new runtime packages.
 `search_results.py` owns privacy-verified search/list transforms;
 `instruction_audit.py` owns bounded instruction metadata audits;
 `optimizer_report.py` owns read-only aggregation and migration-compatible views.
+`codex.py` owns trusted Codex lifecycle events and separate activation/history,
+reusing the existing snapshot, audit and receipt infrastructure. The Codex plugin
+manifest uses the same self-contained skill bundle; runtime code is not duplicated.
+`updates.py` owns bounded version checks and cached notices; it never installs code.
 The `pilotboard` companion is only an alias; the runtime remains self-contained
 inside the main `contextpilot` bundle.
 
@@ -378,9 +547,10 @@ history. SQLite may create temporary journal files in that same directory.
 Python 3.11+ must be available as `python3`, and Git must be on PATH, including
 when inspecting a project that has never been initialized with Git.
 
-The quick-start command installs across your projects. Omit `--global` to install
-only in the current project. This repository is public; GitHub authentication is
-not required to download it.
+The `npx` commands above install across your projects with `--global`; omit that
+flag to install only in the current project. The manual copy commands below are
+for **Claude Code standalone skills** and do not install plugin hooks. This
+repository is public; GitHub authentication is not required to download it.
 
 Alternatively, clone or download this repository, then copy the **entire skill
 directory** using one of the commands below.

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
   <title id="title">ContextPilot — close the tab, keep the thread</title>
-  <desc id="desc">Local repository handoffs for Claude Code. Save a bounded snapshot, verify changes and reconfirm your next task.</desc>
+  <desc id="desc">Local repository handoffs for Claude Code and Codex. Save a bounded snapshot, verify changes and reconfirm your next task.</desc>
   <defs>
     <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#101e2a"/><stop offset="1" stop-color="#102e30"/></linearGradient>
     <linearGradient id="line"><stop stop-color="#73e2c0"/><stop offset="1" stop-color="#73e2c0" stop-opacity="0"/></linearGradient>

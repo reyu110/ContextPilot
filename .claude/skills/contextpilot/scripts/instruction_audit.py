@@ -14,14 +14,16 @@ from scan import (SECRET_CONTENT, allowed_path, ignored_paths, json_bytes,
                   load_json, prepare_ignore_engine, read_local, safe_path, write_artifact)
 
 
-def audit(root: Path) -> dict:
+def audit(root: Path, *, agent: str = "claude-code") -> dict:
+    if agent not in {"claude-code","codex"}:
+        raise ValueError("Unknown instruction audit agent")
     result = {"version":1,"created_at":time.time(),"files":[],"bytes":0,"repeated_bytes":0,
               "truncated":False,"skipped":0}
-    names = ["CLAUDE.md","AGENTS.md",".claude/CLAUDE.md"]
+    names = ["AGENTS.md","AGENTS.override.md"] if agent == "codex" else ["CLAUDE.md","AGENTS.md",".claude/CLAUDE.md"]
     with tempfile.TemporaryDirectory(prefix="contextpilot-ignore-") as temporary:
         engine = prepare_ignore_engine(root,temporary)
         try:
-            rules = safe_path(root,".claude/rules")
+            rules = safe_path(root,".claude/rules") if agent == "claude-code" else None
         except ValueError:
             rules = None
             result["skipped"] += 1
@@ -89,12 +91,14 @@ def audit(root: Path) -> dict:
                 result["truncated"] |= truncated
             except (ValueError,OSError,UnicodeError):
                 result["skipped"] += 1
-    write_artifact(root,"instruction-audit.json",json_bytes(result))
+    write_artifact(root,"codex-instruction-audit.json" if agent == "codex" else "instruction-audit.json",json_bytes(result))
     return result
 
 
-def saved_audit(root: Path) -> dict | None:
-    result = load_json(root,"instruction-audit.json",65536)
+def saved_audit(root: Path, *, agent: str = "claude-code") -> dict | None:
+    if agent not in {"claude-code","codex"}:
+        raise ValueError("Unknown instruction audit agent")
+    result = load_json(root,"codex-instruction-audit.json" if agent == "codex" else "instruction-audit.json",65536)
     if result is None:
         return None
     if (set(result) != {"version","created_at","files","bytes","repeated_bytes","truncated","skipped"}

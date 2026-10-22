@@ -21,7 +21,9 @@ def empty_totals() -> dict:
     return {"actions": 0, "before_bytes": 0, "after_bytes": 0, "net_bytes": 0, "net_tokens": 0}
 
 
-def report(root: Path, session_id: str | None = None, offset: int = 0) -> dict:
+def report(root: Path, session_id: str | None = None, offset: int = 0, *, agent: str = "claude-code") -> dict:
+    if agent not in {"claude-code","codex"}:
+        raise ValueError("Unknown optimizer agent")
     if session_id is not None:
         identifier(session_id)
     if type(offset) is not int or not 0 <= offset <= 10**9:
@@ -32,11 +34,11 @@ def report(root: Path, session_id: str | None = None, offset: int = 0) -> dict:
               "legacy_actions": 0,
               "limitations": [{"label":label,"reason":reason} for label,reason in PLATFORM_LIMITS]}
     try:
-        result["instruction_audit"] = saved_audit(root)
+        result["instruction_audit"] = saved_audit(root,agent=agent)
     except (OSError,ValueError,subprocess.SubprocessError):
         result["instruction_audit"] = None
         result["audit_warning"] = "Instruction audit is unavailable or its paths are no longer eligible; artifacts were preserved."
-    path = database_path(root, ".contextpilot/optimizer.sqlite3")
+    path = database_path(root, ".contextpilot/codex.sqlite3" if agent == "codex" else ".contextpilot/optimizer.sqlite3")
     if path.exists():
         with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=2)) as db:
             db.row_factory = sqlite3.Row
@@ -73,8 +75,18 @@ def report(root: Path, session_id: str | None = None, offset: int = 0) -> dict:
         feature_rows = []
     observed = {r["kind"]: r for r in feature_rows}
     for feature_id, label, mode, detail in FEATURES:
+        if agent == "codex":
+            if feature_id in {"bounded","duplicate","terminal","adaptive","errors","search_duplicate","budget","native","usage","concise","effort","compaction","mcp","cache"}:
+                mode,detail = "unavailable","Not implemented by the Codex adapter; no tool-output replacement or native settings changes."
+            elif feature_id == "checkpoint":
+                detail = "Bounded repository checkpoint before compaction; no session-end scan within the short shutdown deadline."
+            elif feature_id == "instructions":
+                detail = "Bounded root AGENTS.md/AGENTS.override.md audit; no instruction rewriting."
         result["features"].append({"id": feature_id, "label": label, "mode": mode, "detail": detail,
                                    **observed.get(feature_id, empty_totals())})
     # Session instructions are real added context, not a savings claim for each guided feature.
     result["guidance"] = observed.get("guidance", empty_totals())
+    if agent == "codex":
+        result["native"] = None
+        result["limitations"].append({"label":"Claude-only automatic filters and native readings","reason":"Codex uses Bash hooks and a different output contract. This adapter never grants permissions, replaces tool output, or reads private usage history."})
     return result

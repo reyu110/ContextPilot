@@ -23,7 +23,7 @@ def identifier(value: str) -> str:
 
 
 def database_path(root: Path, relative: str = DB_NAME) -> Path:
-    if relative not in {DB_NAME, ".contextpilot/optimizer.sqlite3"}:
+    if relative not in {DB_NAME, ".contextpilot/optimizer.sqlite3", ".contextpilot/codex.sqlite3"}:
         raise ValueError("Unknown ContextPilot database")
     for suffix in ("", "-journal", "-wal", "-shm"):
         path = safe_path(root, relative + suffix)

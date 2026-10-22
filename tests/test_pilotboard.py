@@ -104,8 +104,8 @@ def test_corrupt_history_preserved_without_losing_snapshot(tmp_path: Path) -> No
 
 
 @contextmanager
-def running_server(root: Path, session: str | None = None):
-    server = pilotboard.make_server(root, session_id=session)
+def running_server(root: Path, session: str | None = None, *, agent: str = "claude-code"):
+    server = pilotboard.make_server(root, session_id=session,agent=agent)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:

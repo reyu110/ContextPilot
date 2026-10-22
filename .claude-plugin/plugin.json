@@ -1,6 +1,6 @@
 {
   "name": "contextpilot",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Automatic, local context optimization with transparent Pilotboard estimates.",
   "author": {"name": "reyu110"},
   "homepage": "https://github.com/reyu110/ContextPilot",
