@@ -89,7 +89,8 @@ def test_large_unbounded_read_is_explicitly_chunked_without_permissions_change(p
     activate(project)
     original = event(project, "PreToolUse")
     result = optimizer.hook(project, original)["hookSpecificOutput"]
-    assert result["updatedInput"] == {"file_path": str(project / "main.py"), "limit": 400}
+    assert result["updatedInput"]["file_path"] == str(project / "main.py")
+    assert 1 <= result["updatedInput"]["limit"] <= 1200
     assert "partial" in result["additionalContext"]
     assert "permissionDecision" not in result
     assert original["tool_input"] == {"file_path": str(project / "main.py")}

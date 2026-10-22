@@ -1,7 +1,23 @@
 # Automatic context optimization
 
-Use only for explicit `/contextpilot auto on`, `auto off`, or `auto status`.
-The installed runtime requires Claude Code 2.1.303+ and Python 3.11+ with Git.
+Requires Claude Code 2.1.303+, Python 3.11+ and Git. Runtime uses only the Python
+standard library. Installed plugin hooks invoke bundled code, never repository
+scripts. A standalone skill has no startup lifecycle: it keeps explicit controls.
+
+## Installation and commands
+
+```sh
+claude plugin install contextpilot --marketplace reyu110/ContextPilot
+```
+
+Restart Claude Code. Plugin hooks bootstrap each project automatically. On the
+first startup, missing native defaults are registered in local settings; restart
+once to load those reliably. Filters and session guidance work in the first
+supported session. Plugin commands are `/contextpilot:contextpilot` and
+`/contextpilot:pilotboard`; standalone commands keep their short names. To test
+an unpublished checkout use `claude --plugin-dir /absolute/path/to/ContextPilot`.
+
+For explicit `auto on|off|status`, invoke the installed runtime:
 
 ```sh
 python3 "${CLAUDE_SKILL_DIR}/scripts/optimizer.py" on --root "/path/to/project"
@@ -9,70 +25,162 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/optimizer.py" off --root "/path/to/project"
 python3 "${CLAUDE_SKILL_DIR}/scripts/optimizer.py" status --root "/path/to/project"
 ```
 
-Enabling registers argument-vector command hooks in `.claude/settings.local.json`
-for this project, preserving unrelated settings, permission rules, hooks and
-environment variables. This is an explicit configuration write in addition to
-the normal `.contextpilot/` artifacts; ignore rules for `.contextpilot/` and the
-local settings file are appended once. The hooks invoke
-only the installed skill runtime, never scripts discovered in the repository.
-Do not copy settings into artifacts: they may contain credentials. Only ownership
-metadata and hashes/numeric statistics are retained in `.contextpilot/`.
+Standalone `on` registers project-local hooks. Plugin startup migrates exact owned
+local hooks to plugin delivery, avoiding double optimization. `off` removes exact
+owned settings and unchanged defaults, keeps history, and records a pause honored
+by later plugin startups. `on` resumes. Restart after disabling to clear loaded
+settings. Disable with the bundled runtime **before uninstalling the plugin**;
+Claude has no verified uninstall callback for cleaning up project-local defaults.
+Uninstall alone stops plugin hooks but can leave those local defaults behind.
 
-Tell the user to restart Claude Code after enabling so the hooks and environment
-are loaded reliably. The hooks then run automatically for subsequent prompts in
-that project. Enabling does not rewrite an existing chat or read transcripts.
-Off removes the exact owned entries and the default threshold only if still
-unchanged; it preserves subsequent user edits and usage history. Restart after
-disabling to ensure the previous environment is cleared. A missing or damaged
-ownership record needs inspection; never remove unrelated hooks by guesswork.
+## Configuration ownership
 
-## Behavior
+Only `.claude/settings.local.json`, its ignore rule, and `.contextpilot/` artifacts
+are written. Preserve unrelated hooks, permissions, environment and settings.
+Plugin startup adds missing Concise output, medium effort, a bundled numeric-only
+status line and a 70% auto-compact threshold. Existing personal/project/local
+preferences, per-model effort settings and exported overrides take precedence.
+The selected model is never changed. Managed policy and launch overrides may
+prevent an installed default from taking effect; registration is not proof of
+activation. The previous status line is never replaced or executed by this code.
 
-- An unbounded text `Read` for an eligible file larger than 32 KiB gets an
-  explicit 400-line limit and a partial-read notice. Explicit limits, page reads,
-  and `allow_large` requests are preserved. Read further offsets whenever the
-  task needs more content. No permission decision is returned or bypassed.
-- Exact repeated text Read results of at least 2 KiB within the same prompt are
-  replaced by a short reference to the first tool result. The response retains
-  the official Read output shape. A different explicit offset/limit returns a
-  fresh copy. Changed content, changed ranges, images/PDFs, unknown response
-  schemas, other tools and subagent events pass through unchanged.
-- Session/prompt starts and compaction reset duplicate state, so results from
-  earlier or compacted context are not treated as available. Session-end cleanup
-  and a 24-hour stale-cache sweep discard temporary hashes. Each prompt retains
-  at most 256 cache entries. Prompt text, source bodies and transcripts are never
-  stored. The hook input includes prompt text on prompt events; it is ignored.
-- Existing privacy and Git ignore rules apply before inspecting a tool result.
-  Symlinks, excluded paths and files outside the project are not optimized.
-  Duplicate suppression also skips credential-like content. Git failures,
-  malformed input, unsupported shapes, inputs
-  above 8 MiB or runtime errors preserve original behavior instead of blocking.
-- If no local or exported compaction override exists, enabling requests native compaction
-  at 70% of Claude's auto-compact window. Existing overrides and disabled
-  compaction are respected. Claude Code owns summarization and may lose detail;
-  this skill never claims exact context usage or triggers recursive model calls.
-  Managed policies and higher-priority settings can prevent hooks from running;
-  ContextPilot never overrides disabled-hook or permission controls.
+Settings are bounded, validated and merged atomically. Only ownership metadata
+is retained, never a backup of settings containing credentials. A stale config
+lock after a crash requires verifying no configure operation is running before
+removal. Malformed ownership/configuration and corrupt history are preserved for
+inspection. Runtime hooks fail open and never grant permissions.
 
-## Reporting and limits
+## Filters
 
-Pilotboard displays requested duplicate-text byte reductions and their rough
-bytes/4 token equivalent separately from snapshot scenarios. These are hook
-requests, not confirmations of a provider's tokenizer or invoice. Bounded-read
-counts do not estimate how many tokens a full read would have used. Dollar
-figures use the dashboard's editable scenario rate. Do not add these totals to
-snapshot savings or claim guaranteed savings: smaller reads can require more
-tool calls, and native compaction itself can consume tokens.
+- Eligible unbounded text Reads over 32 KiB use sampled line density and fresh
+  native context pressure. At fresh context usage of 65% or higher, the file-size
+  threshold falls to 4 KiB. Target text windows are 8 KiB normally, 4 KiB at 65%
+  context, 2 KiB at 85%, and 1 KiB at 95%, clamped to 1–1200 lines. A contiguous
+  follow-up in the same prompt can double the normal target below 65%. An initial
+  bounded sample and later verified Read output supply density; only hashes and
+  numeric profiles are stored. Native readings older than two minutes are ignored.
+  Line windows are approximate, never exact byte/token caps. Preserve explicit
+  limits, offsets, page reads and `allow_large`; always include a partial-view
+  notice when a limit is added. Expand when correctness needs it.
+- Exact repeated Read output of at least 2 KiB within a prompt becomes a short
+  pointer retaining the official tool schema. Changed ranges/content are fresh.
+- Unbounded Grep requests get a visible head limit: 200 entries normally, 100 at
+  fresh 65% context, 50 at 85%. Explicit limits, including unlimited `0`, win.
+  Exact repeated Grep content/count text of at least 2 KiB on eligible files or
+  directories can become a pointer. Directory matches require unambiguous,
+  privacy-verified filename/line prefixes (or filename/count pairs); unknown or
+  truncated output passes through. A different explicit offset/head limit is a
+  fresh request. Absolute filenames in Glob/Grep lists can become paths relative
+  to the stated working directory, retaining every match, order, count and flag.
+- Recognized direct pytest/unittest, uv/poetry-run tests, cargo/go test/build/check,
+  npm/pnpm/yarn test/build/lint and ruff/eslint/tsc commands can lose recognized
+  progress and ANSI color codes. Exact diagnostics and Python/JS/Java stacks can
+  be grouped even when separated: retain the complete first copy and total count,
+  with a reference at each later position. Unique diagnostics,
+  summaries, stderr, flags and execution metadata remain intact. Shell
+  pipelines, arbitrary commands, explicit machine formats, unknown terminal control
+  sequences, credential-like text, images, background/timed-out tasks and structured
+  output pass through. A text/list reduction must remove at least
+  512 bytes after its notice. Commands are never changed or silently rerun.
+- Never compact diffs or arbitrary machine-readable output. Full diagnostic
+  blocks are not heuristically summarized. Explicitly request needed detail;
+  the runtime stores no recoverable raw terminal output.
 
-Local settings may be formatted again when updated. Generated configuration
-uses absolute Python/runtime paths. Disable with the original installed runtime
-before moving the bundle, then enable from its new location. Rerun `auto on`
-after changing Python. A stale `.contextpilot/optimizer-config.lock` after a
-crash requires checking that no configuration command is running before removal.
-History corruption must be preserved for inspection; disabling can still remove
-the owned hooks without deleting that history.
+Privacy and Git ignore rules apply to file content before inspection. Skip
+symlinks, excluded/outside paths, non-text files and subagent results. Input is
+bounded to 8 MiB. Duplicate caches and retry hashes are bounded to 256 entries and
+reset at session/prompt/compaction boundaries. Density profiles are bounded to 256
+files/session; they retain no source/path bodies, and continuation requires the
+same prompt and unchanged file metadata. Late results cannot seed new context.
+Some Claude versions use Bash searches instead of Grep/Glob; arbitrary shell
+searches are not rewritten or claimed as covered.
 
-Official contracts:
-[hooks](https://code.claude.com/docs/en/hooks#posttooluse-decision-control),
-[Read output schema](https://code.claude.com/docs/en/agent-sdk/typescript#read-2),
-[compaction environment setting](https://code.claude.com/docs/en/env-vars).
+## Guidance and checkpoints
+
+Session-start guidance covers search-first navigation, relevant diffs, scope,
+prompt preflight, targeted tests without skipping required checks, justified
+subagents, concise answers, stable reusable context, MCP tool discovery, model/
+effort recommendations and fresh sessions for unrelated work. It is delivered
+once per SessionStart, not repeated on every prompt. Session startup also audits
+eligible `CLAUDE.md`, `AGENTS.md`, `.claude/CLAUDE.md` and `.claude/rules/**/*.md`.
+The audit checks privacy/ignore rules first, examines at most 32 files, reads at
+most 256 KiB total and 64 KiB/file, and visits at most 256 rule candidates/directories.
+It measures size and exact repeated paragraphs; the saved
+`.contextpilot/instruction-audit.json` contains paths and numeric metadata, never
+instruction bodies. Partial coverage and stale metadata are labeled. It is
+advisory: no instructions or MCP configuration are edited. Audit failures do not
+disable independent filters. Dashboard/status read the saved audit without writes.
+At the third identical tool input in a prompt, add one retry warning without
+blocking. A fresh native reading at 65% context or higher adds at most one budget
+notice per prompt. Guidance does not guarantee model compliance.
+
+Before compaction and at session end, the existing bounded snapshot runtime
+creates a repository checkpoint, preserving validated explicit notes. It never
+reads transcripts, infers objectives or records chat decisions. Checkpoint failures
+are best effort and cannot block Claude. Snapshot scenario entries remain separate
+from optimizer receipts. Resume/status remain read-only.
+
+## Native tool discovery and caching
+
+Claude already supplies MCP tool search and prompt caching on supported models
+and deployments. ContextPilot uses that native behavior instead of replacing it
+or changing servers, tool permissions, TTLs or caching preferences. Tool-search
+defaults vary by host/model; some deployments reject deferral and load tools
+upfront. Setting a flag cannot override provider support.
+
+Successful main-session `ToolSearch` completion hooks record only an anonymous
+event with zero before/after bytes. No query, discovered schema or result body is
+saved. Late completions cannot cross prompt boundaries; duplicate delivery is
+idempotent. Observation is not a token-savings measurement.
+
+Read-only status interprets `ENABLE_TOOL_SEARCH` (`true`, `false`, `auto`,
+`auto:N`) and `DISABLE_PROMPT_CACHING` (`1` disables, `0` keeps the native default)
+as configuration hints. Existing flags remain unchanged. Unknown values are
+labeled custom without exposing them. Sources are saved preferences and this
+process's environment; running-Claude, managed and launch policy are not inspected.
+Malformed preferences show unavailable hints. No absent flag is proof of activation.
+
+## Measurements and honest limits
+
+Optimizer history retains hashes, opaque IDs, numeric counts/timestamps and
+documented numeric native status-line samples. It stores no prompt, command,
+source or transcript bodies. Private snapshot artifacts retain their existing
+bounded repository handoff contract. Everything remains local.
+
+Signed net payload estimate = sum of ceil(before bytes / 4) minus ceil(after
+bytes / 4). Record added guidance/notice text as overhead; preserve negative
+results. A bounded read has no invented full-read baseline. These are requested
+text-field reductions, not acknowledged tokenizer/billing savings. Other client,
+system and tool overhead is excluded. Earlier ledger rows have no fabricated date;
+they remain in lifetime totals but not dated charts. Dashboard reads never migrate
+history; the next authorized hook writer does that transactionally.
+
+The native status line may supply current-window input/output/cache components,
+context percentage/capacity, session cost field, 5-hour/7-day allowance/reset
+readings, and numeric codes for observed output style/effort. These
+are latest samples, not cumulative token usage or an invoice. Missing/null fields
+mean unavailable, never zero. Existing custom status lines prevent automatic
+sampling; preserve them and show that limitation. Pilotboard shows these details,
+configuration sources and cache-read share separately from reduction estimates.
+Cache-read share is not a savings calculation. Never follow `transcript_path`.
+
+Do not add optimizer estimates, native observations and snapshot scenarios together.
+Dollar equivalents use the editable scenario rate. Smaller reads can require more
+calls; compaction and guidance consume tokens; caching changes cost. No guaranteed
+extension to subscription allowances or per-task model/effort switching is claimed.
+
+The dashboard also lists unsupported behavior and its reason. There is no verified
+command-hook control for automatic main-session model/effort switching or deleting
+past conversation turns. Native compaction remains Claude's responsibility.
+Runtime instruction rewrites are outside the project's permitted artifact writes.
+Workflow/semantic advice cannot be enforced by deterministic hooks without
+substituting guessed requirements for the user's task. These are boundaries,
+not unfinished implementations advertised as complete.
+
+Official contracts: [plugin components](https://code.claude.com/docs/en/plugins/components),
+[hooks](https://code.claude.com/docs/en/hooks),
+[tool schemas](https://code.claude.com/docs/en/agent-sdk/typescript),
+[status line](https://code.claude.com/docs/en/statusline),
+[settings](https://code.claude.com/docs/en/settings-reference).
+See also [environment variables](https://code.claude.com/docs/en/env-vars) and
+[native tool search](https://code.claude.com/docs/en/agent-sdk/tool-search).

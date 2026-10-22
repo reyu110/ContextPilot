@@ -12,8 +12,10 @@ import sqlite3
 from urllib.parse import parse_qs, urlsplit
 import webbrowser
 
-from usage import identifier, summary
+from usage import empty_summary, identifier, summary
 from optimizer import totals as optimizer_totals
+from optimizer import status as optimizer_status
+from optimizer_report import report as optimizer_report
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets" / "pilotboard"
 
@@ -63,13 +65,26 @@ def make_server(root: Path, port: int = 0, session_id: str | None = None) -> Thr
                 return
             try:
                 args = parse_qs(url.query, max_num_fields=3, keep_blank_values=True)
-                if set(args) - {"session", "offset"} or any(len(v) != 1 for v in args.values()):
+                if set(args) - {"session", "offset", "live_offset"} or any(len(v) != 1 for v in args.values()):
                     raise ValueError("Unknown or duplicate query parameter")
                 selected = args.get("session", [session_id])[0]
                 # An empty session value explicitly selects all sessions.
-                result = summary(root, selected or None, int(args.get("offset", ["0"])[0]))
+                snapshot_offset = int(args.get("offset", ["0"])[0])
+                result = empty_summary(root, selected or None, snapshot_offset)
+                live_offset = int(args.get("live_offset", ["0"])[0])
+                if not 0 <= live_offset <= 10**9:
+                    raise ValueError("Invalid live page")
+                try:
+                    result = summary(root, selected or None, snapshot_offset)
+                except (OSError, ValueError, sqlite3.Error):
+                    result["snapshot_error"] = "Snapshot history could not be read. It has been preserved; live optimizer history is separate."
                 try:
                     result["optimizer"] = optimizer_totals(root)
+                    result["optimizer"]["report"] = optimizer_report(root, selected or None, live_offset)
+                    try:
+                        result["optimizer"]["status"] = optimizer_status(root)
+                    except (OSError, ValueError, sqlite3.Error):
+                        result["optimizer"]["status"] = {"enabled": False, "warning": "Configuration needs inspection; history is preserved."}
                 except (OSError, ValueError, sqlite3.Error):
                     result["optimizer"] = {"error": "Optimizer history could not be read; snapshot history is still available."}
                 self.reply(200, json.dumps(result, ensure_ascii=True).encode(), "application/json")

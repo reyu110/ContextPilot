@@ -162,6 +162,30 @@ def test_empty_dashboard_never_creates_artifacts(tmp_path: Path) -> None:
     assert list(tmp_path.iterdir()) == []
 
 
+def test_dashboard_serves_native_details_and_instruction_audit_readonly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import optimizer
+    monkeypatch.setattr(optimizer,"check_version",lambda: None)
+    (tmp_path / "CLAUDE.md").write_text("Keep project requirements intact.\n")
+    optimizer.hook(tmp_path,{"session_id":"session","cwd":str(tmp_path),"hook_event_name":"SessionStart"},plugin=True)
+    optimizer.statusline(tmp_path,{"session_id":"session","workspace":{"project_dir":str(tmp_path)},
+        "context_window":{"context_window_size":200000,"current_usage":{"input_tokens":100,"cache_read_input_tokens":300}},
+        "output_style":{"name":"Concise"},"effort":{"level":"medium"},"cost":{"total_cost_usd":0.012}})
+    before = {str(p.relative_to(tmp_path)):p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    with running_server(tmp_path,"session") as server:
+        auth = {"X-Pilotboard-Key":server.dashboard_url.split("#")[1]}
+        code,_,body = request(server,"/api/usage",auth)
+        result = json.loads(body)
+        assert code == 200
+        report = result["optimizer"]["report"]
+        assert report["native"]["window_size"] == 200000 and report["native"]["cache_read"] == 300
+        assert report["native"]["cost_usd"] == 0.012
+        assert report["instruction_audit"]["files"][0]["path"] == "CLAUDE.md"
+        assert len(report["limitations"]) == 5
+        assert set(result["optimizer"]["status"]["native_controls"]) == {"tool_search","prompt_cache"}
+        assert result["lifetime"]["saved_tokens"] == 0
+    assert before == {str(p.relative_to(tmp_path)):p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+
+
 def test_optimizer_receipts_do_not_inflate_snapshot_totals(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import optimizer
     monkeypatch.setattr(optimizer, "check_version", lambda: None)
@@ -207,3 +231,24 @@ def test_installed_bundle_survives_copy_and_alias_is_discoverable(tmp_path: Path
     assert "`contextpilot`" in alias.read_text()
     alias_script = target.parent / "pilotboard/../contextpilot/scripts/pilotboard.py"
     assert subprocess.run([sys.executable, str(alias_script), "--help"], capture_output=True).returncode == 0
+
+
+def test_live_session_filters_and_snapshot_failure_are_independent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import optimizer
+    monkeypatch.setattr(optimizer,"check_version",lambda: None)
+    optimizer.configure(tmp_path,True)
+    with optimizer.history(tmp_path) as db:
+        optimizer.receipt(db,"a","prompt-a","tool-a","terminal",4000,100)
+        optimizer.receipt(db,"b","prompt-b","tool-b","guidance",0,400)
+    (tmp_path / usage.DB_NAME).write_bytes(b"preserve corrupt snapshot history")
+    before = {p.name:p.read_bytes() for p in (tmp_path / ".contextpilot").iterdir()}
+    with running_server(tmp_path) as server:
+        auth = {"X-Pilotboard-Key":server.dashboard_url.split("#")[1]}
+        code,_,body = request(server,"/api/usage?session=b&live_offset=0",auth)
+        result = json.loads(body)
+        assert code == 200 and "snapshot_error" in result
+        assert result["optimizer"]["report"]["selected"]["net_tokens"] == -100
+        assert result["optimizer"]["report"]["lifetime"]["net_tokens"] == 875
+        for query in ("live_offset=-1","live_offset=no","live_offset=1000000001"):
+            assert request(server,"/api/usage?"+query,auth)[0] == 400
+    assert before == {p.name:p.read_bytes() for p in (tmp_path / ".contextpilot").iterdir()}

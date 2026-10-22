@@ -9,9 +9,14 @@ never execute repository scripts, make network requests, infer conversation
 history, or claim exact Claude token counts. Privacy exclusions apply before
 reading or exporting paths. Skip symlinks. Generated artifacts stay inside
 `.contextpilot/`; snapshots only append its root ignore rule outside that folder.
-Explicit `auto on|off` may additionally merge only ContextPilot's hooks and
-compaction default into `.claude/settings.local.json`; preserve unrelated settings
-and exclude that local file from discovery and Git. Resume and status must stay
+Explicit `auto on|off`, or startup of the explicitly installed ContextPilot plugin,
+may additionally merge only owned hooks and native defaults into
+`.claude/settings.local.json`; preserve existing user/project preferences and
+unrelated settings. Native defaults are compaction, concise output, medium effort,
+and the bundled numeric-only status line. Never change the selected model or an
+existing status line. Plugin compaction/session-end hooks may create bounded
+repository checkpoints using existing explicit notes; never reconstruct chat tasks.
+Exclude local settings from discovery and Git. Resume and status must stay
 read-only. Preserve explicit notes and validate them.
 
 Run `python3 -m pytest` after changes, including temporary Git integration tests.

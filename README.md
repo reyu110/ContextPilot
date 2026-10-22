@@ -28,7 +28,21 @@ runtime Python dependencies.**
 
 ## Quick start
 
-Install for Claude Code across your projects:
+For **automatic optimization from session startup**, install the Claude Code
+plugin once (Claude Code 2.1.303+, Python 3.11+ and Git):
+
+```sh
+claude plugin install contextpilot --marketplace reyu110/ContextPilot
+```
+
+Restart Claude Code. The plugin starts eligible optimizations automatically in
+each project; there is no per-project `auto on` step. On its first startup it
+registers missing native defaults locally; one additional restart loads those
+defaults reliably. Existing preferences, selected models and status lines win.
+Plugin commands are namespaced: **`/contextpilot:pilotboard`** and
+**`/contextpilot:contextpilot status`**. Claude owns this namespacing.
+
+For the standalone `/contextpilot` and `/pilotboard` commands instead:
 
 ```sh
 npx skills add reyu110/ContextPilot --skill contextpilot --skill pilotboard --agent claude-code --global --yes
@@ -45,8 +59,10 @@ Then use these commands in Claude Code:
 Omit `--global` for a project-only install. Reopen Claude Code if the skill is not
 listed. This public repository does not require GitHub authentication.
 
-> Snapshot writes inside `.contextpilot/` and appends `/.contextpilot/` to
-> `.gitignore`. Resume and status are read-only. Tasks never execute automatically.
+> Standalone snapshot writes inside `.contextpilot/` and appends its ignore rule.
+> Plugin startup also merges owned native defaults into local Claude settings;
+> checkpoints run before compaction and at session end. Resume and status stay
+> read-only. ContextPilot never executes project tasks or scripts itself.
 
 Open the localhost dashboard with **`/pilotboard`**. Installing both skills gives
 you the short alias; `/contextpilot board` works with the main skill alone.
@@ -61,12 +77,14 @@ you the short alias; `/contextpilot board` works with the main skill alone.
 
 Use it alongside Claude Code's `/compact`. Compact manages the active
 conversation; ContextPilot leaves a reviewable handoff in your working tree.
-It cannot recover private chat history, infer your intentions, or measure
-Claude's context-window utilization.
+It cannot recover private chat history or infer your intentions. When its owned
+status line is invoked, it can retain Claude's documented numeric context and
+allowance readings; missing readings are never guessed.
 
 ## Automatic context optimization
 
-For ongoing work in Claude Code **2.1.303 or newer**, opt in once per project:
+The **plugin activates automatically**. Standalone skill users can still opt in
+once per project in Claude Code **2.1.303 or newer**:
 
 ```text
 /contextpilot auto on
@@ -77,17 +95,25 @@ optimizer runs automatically as the conversation continues:
 
 | Behavior | How it reduces context | How to get more detail |
 | :--- | :--- | :--- |
-| Chunk large file reads | Unbounded text reads of eligible files over 32 KiB get a 400-line limit and an explicit partial-view notice | Ask for another offset or an explicit line limit; explicit requests are preserved |
+| Adapt large file reads | Eligible unbounded text reads over 32 KiB (4 KiB at elevated native context) use line density and context pressure; contiguous follow-up reads can expand, with a partial-view notice | Ask for another offset or explicit limit; explicit requests win |
 | Reduce duplicate reads | Identical text Read results within the same prompt return a short reference to the earlier result | Read a different explicit range for a fresh copy |
-| Earlier native compaction | Sets a 70% auto-compact-window threshold only when no local or exported override exists | Existing overrides and disabled compaction remain under your control |
+| Reduce search and listing context | Bound unbounded Grep requests; reference exact repeated eligible file/directory content or counts; shorten absolute Glob/Grep paths without removing matches | Use a different explicit offset/head limit; explicit `head_limit: 0` remains unlimited |
+| Compact terminal output | Known test/build/lint commands lose recognized progress and color noise; repeated exact diagnostics and Python/JS/Java stacks keep a complete copy, count and positional references | Unknown commands, machine output and unsupported shapes pass through; commands are never rerun |
+| Detect retry loops | Adds a bounded warning at the third identical tool input in a prompt | Legitimate retries remain allowed |
+| Guide efficient work | Search first, relevant diffs, targeted tests, scope/preflight checks, justified subagents, stable context and fresh-session guidance | Model compliance is guidance, not a guarantee |
+| Repository checkpoints | Reuse the bounded snapshot runtime before compaction and at session end, preserving explicit notes | No chat history or invented decisions |
+| Native defaults (plugin) | Missing concise-output, medium-effort, numeric status-line and 70% compaction defaults | Existing preferences and managed policies win; the selected model is never changed |
+| Native tool discovery and caching | Reuse Claude's automatic MCP tool deferral and prompt caching on supported deployments; record observed ToolSearch calls and show configuration hints | Existing disable flags remain respected; no invented savings for native calls |
+| Audit project instructions | Automatically measure eligible root instructions and `.claude/rules` for size and exact repeated paragraphs | Advisory dashboard report; instructions are never rewritten |
 
 ```text
 /contextpilot auto status
 /contextpilot auto off
 ```
 
-`auto status` is read-only. `auto off` removes the exact owned hooks and the
-unchanged default threshold; restart to clear the previous environment. It
+`auto status` is read-only. `auto off` removes exact owned hooks and unchanged
+native defaults, and preserves a pause that plugin startup will honor; restart to
+clear the previous environment. In the plugin use the namespaced main command. It
 preserves other settings, permission rules, hooks and usage history. This mode
 does not rewrite past messages, summarize with a separate paid model, bypass
 tool permissions, or read Claude transcripts.
@@ -95,18 +121,36 @@ tool permissions, or read Claude transcripts.
 Enabling explicitly updates **`.claude/settings.local.json`** and adds its root
 ignore rule along with `.contextpilot/`. Hook paths refer to the installed bundle,
 not scripts discovered in your repository. No source or prompt bodies are saved;
-only hashes, opaque prompt identifiers and numeric statistics are retained.
+only ownership metadata, hashes, opaque identifiers and numeric statistics are
+retained in optimizer history. Repository snapshots retain their existing bounded
+inventory and handoff contract separately.
 
 Duplicate state resets at prompt, session and compaction boundaries. A result
 that started before a boundary cannot become a later prompt's cache anchor.
 Files that changed, different ranges, excluded paths, symlinks, non-text outputs,
-unknown schemas and errors pass through. If earlier output is no longer visible,
+unknown schemas and unsupported tool failures pass through. If earlier output is no longer visible,
 an explicit fresh range returns its content again. Hook errors preserve original
-tool behavior. The optimizer currently targets the main conversation's **Read**
-tool; Bash, other tools and subagents are unchanged.
+tool behavior. The main conversation's Read and eligible Grep text can be
+deduplicated. Known test/build/lint invocations can have progress noise reduced. Subagents,
+unknown schemas, background tasks, structured output and credential-like results
+pass through. No tool permission is granted or bypassed.
 
-Pilotboard's **Live Read optimizer** panel reports requested duplicate-text byte
-reductions, rough token/dollar equivalents, and the number of large reads bounded.
+Pilotboard shows **signed net optimizer estimates**, including recorded added
+guidance, lifetime/session/prompt breakdowns, per-feature contributions, health,
+and native context/allowance samples when available. Its 28-capability inventory
+distinguishes filters, native defaults, guidance and recommendation-only controls.
+Expandable panels show native input/output/cache components, context capacity,
+the reported session cost, allowance reset times and observed style/effort, plus
+file-level instruction audit coverage and staleness. Native samples are
+current-window observations, not cumulative token consumption. Cache-read share
+describes cache use; it is never counted as saved tokens or money.
+Tool-search and prompt-cache configuration hints distinguish native defaults,
+explicit disabled/enabled preferences, custom values and unavailable settings.
+They inspect saved settings and the dashboard process's environment, not the
+running Claude process or managed policy. A recorded ToolSearch call is an
+observation with zero estimated savings. The capability table and its limitations
+panel distinguish enforceable filters, native functionality and model guidance.
+Earlier ledger rows keep their lifetime value without fabricated timestamps.
 These totals are separate from snapshot scenarios. Smaller reads can need more
 tool calls, compaction itself can consume tokens, and provider caching changes
 cost: **neither token savings nor invoice savings are guaranteed**. See the
@@ -118,6 +162,11 @@ cost: **neither token savings nor invoice savings are guaranteed**. See the
 breakdowns, a 7/30-day timeline, and paginated snapshot-prompt details. Choose a
 session, compare sampled context with the generated handoff, and adjust the
 input-token dollar rate to explore an approximate value.
+
+Plugin-only installs use `/contextpilot:pilotboard`. The live optimizer section
+updates every 15 seconds while visible and immediately on returning to the tab.
+Opening the board never activates hooks, creates a snapshot, or writes history.
+Automatic operation does not require keeping the board open.
 
 | View | What it covers |
 | :--- | :--- |
@@ -273,10 +322,17 @@ The estimate is bytes / 4, not a tokenizer or a claim about model utilization.
 | `snapshot` | Bounded repository selection + explicit notes | Local artifacts + root ignore rule |
 | `resume` | Saved handoff + current bounded scan | Nothing |
 | `status` | Saved scan metadata | Nothing |
+| Plugin hooks | Eligible tool results, settings metadata, explicit notes | Owned local defaults, numeric/hash receipts, bounded checkpoints |
+| Pilotboard | Snapshot/optimizer ledgers and ownership metadata | Nothing |
 
 Pilotboard is served by `scripts/pilotboard.py` with bundled HTML/CSS/JavaScript.
 `scripts/usage.py` owns the project-local SQLite ledger and estimate aggregation.
 SQLite is part of Python's standard library; there are no new runtime packages.
+`optimizer.py` owns hook lifecycle, configuration and numeric native samples;
+`policies.py` owns conservative text filters and bounded guidance;
+`search_results.py` owns privacy-verified search/list transforms;
+`instruction_audit.py` owns bounded instruction metadata audits;
+`optimizer_report.py` owns read-only aggregation and migration-compatible views.
 The `pilotboard` companion is only an alias; the runtime remains self-contained
 inside the main `contextpilot` bundle.
 
@@ -361,11 +417,12 @@ for the skill; installing the Python project alone does not install the skill.
 /contextpilot snapshot --refresh --max-files 80 --max-bytes 131072
 ```
 
-Only explicit user invocation enables the skill (`disable-model-invocation:
-true`). `snapshot` creates or refreshes `.contextpilot/scan.json` and
+Standalone slash commands require explicit invocation (`disable-model-invocation:
+true`); installed plugin lifecycle hooks run automatically. `snapshot` creates or refreshes `.contextpilot/scan.json` and
 `.contextpilot/HANDOFF.md`, saves an integrity record as `snapshot.json`, and adds
 `/.contextpilot/` to the project's `.gitignore`. This ignore-file append is the
-sole write outside `.contextpilot/`. No application source files are modified.
+sole outside write for a snapshot. Automatic setup additionally merges owned
+local Claude defaults and their ignore rule. No application source files are modified.
 An existing handoff is backed up as `HANDOFF.previous.md` before replacement;
 there is one backup, not an archive. Nothing is automatically staged or committed.
 
@@ -422,6 +479,20 @@ The tool is not a sandbox for concurrent hostile filesystem mutation.
 <details>
 <summary><strong>Known limitations</strong></summary>
 
+- Hook filtering covers recognized native Read, Grep, Glob and terminal output
+  schemas. Some Claude versions use Bash searches instead of Grep/Glob; arbitrary
+  shell searches are not rewritten. Ambiguous directory output passes through.
+- Instruction audits cover up to 32 eligible project files and 256 KiB of text;
+  they do not inspect personal instructions, rewrite rules or count actual prompt
+  tokens. Runtime guidance cannot enforce model choices or reasoning behavior.
+- Native samples require Claude to invoke the owned status line. Existing status
+  lines are preserved. Exact billed savings and a longer subscription allowance
+  cannot be inferred from text reductions or cache composition.
+- Automatic main-session model/effort switching has no verified command-hook
+  control. Hooks cannot delete past chat turns; native compaction owns that
+  behavior. Runtime instruction rewriting is outside the permitted artifact writes.
+  Search order, test selection and task reasoning remain guidance: ContextPilot
+  cannot enforce them without risking the user's requirements.
 - Only selected UTF-8 text files are sampled. Unread portions, unknown extensions,
   excluded paths and files beyond discovery/selection limits are not understood.
 - Entry points are filename candidates; framework detection is a text heuristic.

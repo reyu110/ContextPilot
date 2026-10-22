@@ -7,6 +7,49 @@ the shell tool's background-process support so the server survives the tool call
 python3 "${CLAUDE_SKILL_DIR}/scripts/pilotboard.py" --root "/path/to/project" --session-id "${CLAUDE_SESSION_ID}"
 ```
 
+Plugin commands are `/contextpilot:pilotboard` and
+`/contextpilot:contextpilot board`. The plugin supplies automatic hook startup;
+opening this dashboard never changes activation or creates history.
+
+## Automatic optimizer views
+
+The first section shows signed net text-payload reduction, approximate scenario
+value, selected-session totals, and recorded actions. A 30-day UTC chart and
+feature contribution bars include recorded guidance overhead. Native context
+and 5-hour/7-day allowance samples appear separately with timestamps and stale
+labels. Unavailable readings remain blank. Configuration and recent activity are
+separate signals; neither confirms current-session hook acceptance or billing.
+
+Expand **Native usage details** for reported input/output/cache components, context
+capacity, the native session cost field, allowance reset times, observed output
+style/effort and configuration sources. Native cost is displayed directly and does
+not change with the editable scenario rate. Cache-read share describes reported
+input composition; it is not tokens or money saved. Missing components stay blank.
+Tool-search and prompt-cache hints report saved/inspected configuration separately
+from observed native usage. The capability table identifies recorded ToolSearch
+calls with zero invented savings and preserves explicit disable preferences. The
+**Why some features remain limited** panel explains platform/project boundaries;
+it never marks model guidance as enforced automation.
+
+Expand **Project instruction audit** for file-level sampled size, exact repeated
+paragraph bytes and coverage. Session-start hooks create this bounded advisory
+report; dashboard reads never run an audit or rewrite instructions. Partial samples,
+stale file metadata and rejected reads are labeled. An invalid audit reports its
+own warning without hiding optimizer history. Personal instructions are outside
+the audit scope. See the [optimizer contract](optimizer.md) for limits.
+
+Session rows cover the latest 100 groups. Optimizer prompts are independently
+paginated by 50; each expands to at most 20 recent receipts, with complete totals.
+Anonymous prompt groups come from hook boundaries, never conversation content.
+The feature inventory distinguishes filtering, native defaults, guidance and
+recommendation-only functionality. It does not claim 28 enforceable optimizations.
+
+Reads of `.contextpilot/optimizer.sqlite3` never create or migrate schema. Older
+undated actions remain in lifetime totals but not charts. An optimizer failure
+must not inflate snapshot estimates. The board refreshes every 15 seconds only
+while visible, and when the tab becomes visible again. All frontend assets remain
+local. The [optimizer contract](optimizer.md) defines before/after estimates.
+
 Use the actual current project root. If a current session ID is unavailable,
 omit `--session-id`; do not inspect transcripts or invent session membership.
 The server prints `Pilotboard: http://127.0.0.1:PORT/#ACCESS_KEY` and opens that

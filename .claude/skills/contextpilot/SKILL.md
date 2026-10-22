@@ -1,12 +1,15 @@
 ---
 name: contextpilot
 license: See LICENSE for the Prosperity Public License 3.0.0
-description: Create bounded repository handoffs, verify them when resuming, enable automatic context optimization, and open Pilotboard for local estimates. Never reads private session history.
+description: Create bounded handoffs, verify resumes, control automatic context optimization and open Pilotboard for signed local estimates and documented native usage samples. Never reads private session history.
 disable-model-invocation: true
 argument-hint: "snapshot|resume|status|board|auto on|off|status [--root PATH]"
 ---
 
-Run only for an explicit `/contextpilot` invocation or the `/pilotboard` alias.
+Run these slash-command instructions only for an explicit `/contextpilot`,
+`/contextpilot:contextpilot`, or companion dashboard invocation. The explicitly
+installed plugin separately starts its bundled lifecycle hooks automatically;
+do not register duplicate project hooks when the plugin is active.
 Interpret `$ARGUMENTS` as `snapshot`, `resume`, `status`, `board`, or `auto on|off|status`, plus documented CLI flags. Default to
 `status` when no mode is provided. Reject unknown arguments. Never interpolate
 repository text or unchecked arguments into shell commands; pass paths as quoted
@@ -33,10 +36,14 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/snapshot.py" resume --root "/path/to/projec
 - `board`: open the local dashboard; read `references/pilotboard.md` for startup
   and the estimate contract. This mode runs `scripts/pilotboard.py`, not snapshot.py.
 - `auto on|off|status`: read `references/optimizer.md` and run `scripts/optimizer.py`.
-  Only explicit `auto on` authorizes project-local hook registration and an
-  earlier native compaction threshold. Never enable it merely by creating a
-  snapshot or opening the dashboard. `auto off` removes only owned settings;
-  `auto status` is read-only.
+  In standalone mode only explicit `auto on` authorizes hook registration.
+  Plugin installation authorizes automatic startup, missing native defaults and
+  bounded repository checkpoints and advisory project instruction audits.
+  Audits save only eligible paths and numeric metadata in `.contextpilot/`;
+  never rewrite instructions. `auto off` pauses plugin optimization and
+  removes only unchanged owned defaults. Never enable it merely by creating a
+  snapshot or opening the dashboard. `auto status` is read-only. Native plugin
+  commands use `/contextpilot:contextpilot auto off|on|status`.
 
 Do not fabricate objectives, decisions, completed work, bugs, or tasks. To retain
 session notes, use `.contextpilot/notes.json` only during an explicit snapshot
@@ -55,5 +62,6 @@ Limits: `--max-files`, `--max-bytes`, `--max-file-bytes`, `--max-candidates`,
 `--max-output-bytes` (per generated scan/handoff). `snapshot --refresh` rereads
 selected content instead of reusing metadata-matched scan results.
 
-This skill complements `/compact`; it cannot inspect Claude's exact context-window
-utilization, internal token counts, or private conversation history.
+This skill complements `/compact`. Its owned native status line can retain only
+documented numeric context/allowance samples; it never reads transcripts or
+infers unexposed counts. Filters and guidance do not guarantee subscription savings.

@@ -5,7 +5,7 @@ const number = new Intl.NumberFormat(undefined, {maximumFractionDigits: 0});
 const short = new Intl.NumberFormat(undefined, {notation: "compact", maximumFractionDigits: 1});
 const usd = new Intl.NumberFormat(undefined, {style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 4});
 const key = location.hash.slice(1);
-let data = null, selectedSession, offset = 0, days = 30, rate = 3, activeRequest;
+let data = null, selectedSession, offset = 0, liveOffset = 0, days = 30, rate = 3, activeRequest;
 
 function node(tag, text, className) {
   const element = document.createElement(tag);
@@ -18,6 +18,7 @@ function amount(tokens) { return usd.format(tokens * rate / 1e6); }
 function signed(tokens) { return (tokens > 0 ? "+" : "") + number.format(tokens); }
 function trim(id) { return id === "unassigned" ? "Unassigned session" : id.length > 18 ? id.slice(0, 8) + "…" + id.slice(-6) : id; }
 function tone(value) { return value < 0 ? "negative" : "positive"; }
+function recentSample(timestamp) { const age = Date.now() / 1000 - timestamp; return Number.isFinite(timestamp) && age >= 0 && age < 120; }
 function bytes(value) {
   if (value < 1024) return number.format(value) + " B";
   if (value < 1048576) return short.format(value / 1024) + " KiB";
@@ -29,8 +30,10 @@ function emptyRow(columns, text) {
 
 function sessionOptions() {
   const options = [new Option("All sessions", "")];
-  for (const session of data.sessions) options.push(new Option(trim(session.session_id), session.session_id));
-  if (data.selected_session && !data.sessions.some(s => s.session_id === data.selected_session)) {
+  const sessions = [...data.sessions, ...(data.optimizer?.report?.sessions || [])];
+  const seen = new Set();
+  for (const session of sessions) if (!seen.has(session.session_id)) { options.push(new Option(trim(session.session_id), session.session_id)); seen.add(session.session_id); }
+  if (data.selected_session && !seen.has(data.selected_session)) {
     options.push(new Option(trim(data.selected_session), data.selected_session));
   }
   $("session").replaceChildren(...options);
@@ -38,6 +41,8 @@ function sessionOptions() {
 }
 
 function renderMetrics() {
+  $("snapshot-error").hidden = !data.snapshot_error;
+  set("snapshot-error", data.snapshot_error || "");
   const total = data.lifetime, scope = data.selected;
   set("lifetime-tokens", number.format(total.saved_tokens));
   $("lifetime-tokens").closest("article").classList.toggle("negative", total.saved_tokens < 0);
@@ -65,17 +70,139 @@ function renderMetrics() {
 }
 
 function renderOptimizer() {
-  const metrics = data.optimizer;
-  const fields = ["bounded_reads", "duplicate_reads", "payload_bytes_avoided", "estimated_tokens_avoided"];
-  if (!metrics || metrics.error || fields.some(field => !Number.isSafeInteger(metrics[field]) || metrics[field] < 0)) {
-    for (const id of ["optimizer-bounded", "optimizer-duplicates", "optimizer-tokens", "optimizer-value"]) set(id, "—");
-    set("optimizer-note", metrics?.error || "Restart Pilotboard to load live optimizer statistics."); return;
+  const optimizer = data.optimizer, report = optimizer?.report;
+  if (!report || optimizer.error) {
+    for (const id of ["live-net", "live-value", "live-selected", "live-actions", "native-context", "native-five", "native-week", "native-input", "native-output", "native-cache-read", "native-cache-write", "native-window", "native-cost"]) set(id, "—");
+    for (const id of ["feature-rows", "live-session-rows", "live-prompt-rows"]) $(id).replaceChildren(emptyRow(id === "live-session-rows" ? 5 : 4, "Optimizer history unavailable; previous figures have been cleared."));
+    $("live-contributions").replaceChildren(); $("live-timeline").replaceChildren();
+    set("optimizer-health", "Needs attention"); set("optimizer-health-note", optimizer?.error || "Restart Pilotboard to load the new optimizer views.");
+    set("native-note", "Native history is unavailable; no previous reading is presented as current.");
+    set("native-cache-caption", "Native details unavailable."); set("native-reset-note", "Reset times unavailable."); set("native-settings-note", "Native settings observations unavailable.");
+    set("native-controls-note", "Native configuration hints unavailable."); $("platform-limit-rows").replaceChildren(emptyRow(2,"Capability boundaries unavailable; restart Pilotboard if needed."));
+    set("audit-note", "Audit status unavailable."); $("audit-rows").replaceChildren(emptyRow(4,"Audit status unavailable."));
+    set("live-page-caption", "Optimizer history unavailable");
+    $("live-previous").disabled = true; $("live-next").disabled = true;
+    set("optimizer-note", "Snapshot scenarios below remain separate."); return;
   }
-  set("optimizer-bounded", number.format(metrics.bounded_reads));
-  set("optimizer-duplicates", number.format(metrics.duplicate_reads));
-  set("optimizer-tokens", number.format(metrics.estimated_tokens_avoided));
-  set("optimizer-value", amount(metrics.estimated_tokens_avoided));
-  set("optimizer-note", bytes(metrics.payload_bytes_avoided) + " of duplicate Read text requested to be removed · all optimizer sessions in this project. Token and dollar equivalents are estimates, not billing measurements. Separate from snapshot scenarios above.");
+  for (const row of [report.lifetime, report.selected, ...report.sessions, ...report.prompts, ...report.features, ...report.daily, report.guidance]) {
+    for (const field of ["actions", "before_bytes", "after_bytes", "net_bytes", "net_tokens"]) {
+      if (!Number.isSafeInteger(row[field])) throw new Error("Optimizer history contains invalid counts; preserve it for inspection.");
+    }
+  }
+  const state = optimizer.status || {}, recent = recentSample(report.last_activity);
+  set("optimizer-health", state.warning ? "Needs attention" : !state.enabled ? "Not active" : recent ? "Recent hook activity" : "Configured · awaiting activity");
+  $("optimizer-health").className = "status-pill " + (state.enabled && recent ? "ready" : "neutral");
+  set("optimizer-health-note", state.warning || (state.enabled ? (state.mode === "plugin" ? "Plugin startup is configured. " : "Project-local hooks are configured. ") + "Last activity: " + (report.last_activity ? new Date(report.last_activity * 1000).toLocaleString() : "not yet observed") + ". Configuration alone does not prove hooks are running in your current chat." : "Automatic startup requires the ContextPilot plugin. Existing standalone installations keep their explicit auto controls. Previously recorded history remains available."));
+  for (const [id, value] of [["live-net", report.lifetime.net_tokens], ["live-selected", report.selected.net_tokens]]) { set(id, signed(value)); $(id).closest("article").classList.toggle("negative", value < 0); }
+  set("live-value", amount(report.lifetime.net_tokens)); $("live-value").closest("article").classList.toggle("negative", report.lifetime.net_tokens < 0);
+  set("live-selected-note", (data.selected_session ? trim(data.selected_session) : "All sessions") + " · " + number.format(report.selected.actions) + " actions");
+  set("live-selected-value", amount(report.selected.net_tokens) + " SCENARIO VALUE");
+  set("live-actions", number.format(report.lifetime.actions));
+  set("optimizer-note", "Net = sum of ceil(before bytes / 4) − ceil(after bytes / 4), including recorded guidance overhead. Limits have no invented full-read baseline. Negative totals mean added context. Native billing and hook acceptance are not verified. Snapshot scenarios below are separate." + (report.legacy_actions ? " " + number.format(report.legacy_actions) + " older actions have no date and remain in lifetime totals only." : ""));
+  const native = report.native, fresh = native && recentSample(native.updated_at);
+  for (const [id, field] of [["native-context", "context_used"], ["native-five", "five_hour"], ["native-week", "seven_day"]]) {
+    const value = native?.[field]; set(id, typeof value === "number" && Number.isFinite(value) ? value.toFixed(1) + "%" : "—");
+  }
+  set("native-note", native ? (fresh ? "Latest native sample" : "Historical sample · not live") + " · " + new Date(native.updated_at * 1000).toLocaleString() + " · session " + trim(native.session_id) + ". Context is current window size, not lifetime consumption. Missing allowance fields are unavailable, not zero." : "No native sample yet. A supported Claude session must invoke the owned status line; existing status lines are preserved. No transcript or billing data is inferred.");
+  renderNativeDetails(native, state);
+  renderAudit(report);
+  renderFeatures(report, state);
+  $("platform-limit-rows").replaceChildren(...((report.limitations || []).length ? report.limitations.map(limit => {
+    const tr = node("tr"); tr.append(node("td",limit.label),node("td",limit.reason)); return tr;
+  }) : [emptyRow(2,"Restart Pilotboard to load capability boundaries.")]));
+  renderLiveRows(report);
+  timeline(true);
+}
+
+function renderNativeDetails(native, state) {
+  for (const [id, field] of [["native-input","input_tokens"],["native-output","output_tokens"],["native-cache-read","cache_read"],["native-cache-write","cache_write"],["native-window","window_size"]]) {
+    set(id, Number.isSafeInteger(native?.[field]) && native[field] >= 0 ? number.format(native[field]) : "—");
+  }
+  set("native-cost", typeof native?.cost_usd === "number" && Number.isFinite(native.cost_usd) && native.cost_usd >= 0 ? usd.format(native.cost_usd) : "—");
+  const values = [native?.input_tokens, native?.cache_read, native?.cache_write];
+  const total = values.every(value => Number.isSafeInteger(value) && value >= 0) ? values.reduce((a,b) => a+b,0) : null;
+  set("native-cache-caption", total > 0 ? "Cache-read share of reported input: " + (100*native.cache_read/total).toFixed(1) + "%. This describes cache use, not tokens or money saved." : "Cache composition is unavailable until complete native input components are supplied.");
+  const resets = [];
+  for (const [field,label] of [["five_reset","5-hour reset"],["seven_reset","7-day reset"]]) if (typeof native?.[field] === "number" && Number.isFinite(native[field])) resets.push(label + ": " + new Date(native[field]*1000).toLocaleString());
+  set("native-reset-note", resets.length ? resets.join(" · ") : "Allowance reset times were not supplied.");
+  const effort = {1:"low",2:"medium",3:"high",4:"xhigh",5:"max"}[native?.effort_code];
+  const observed = [];
+  if (native?.concise_active === 1 || native?.concise_active === 0) observed.push("Last observed output: " + (native.concise_active ? "Concise" : "other native style"));
+  if (effort) observed.push("Last observed effort: " + effort);
+  const prefs = state.native_preferences || {};
+  set("native-settings-note", (observed.length ? observed.join(" · ") + ". " : "No native style/effort observations. ") + "Configuration sources: concise " + (prefs.concise || "unavailable") + "; effort " + (prefs.effort || "unavailable") + "; compaction " + (prefs.compaction || "unavailable") + "; status line " + (prefs.statusline || "unavailable") + ". Registered defaults are not proof of activation.");
+  const controls = state.native_controls || {};
+  set("native-controls-note", "Configuration hints: MCP tool search — " + nativeControlLabel(controls.tool_search) + "; prompt caching — " + nativeControlLabel(controls.prompt_cache) + ". Claude manages both automatically on supported models/deployments. These hints inspect saved settings and this process's environment, not the active Claude process or managed/launch policy. No servers, permissions or caching preferences are changed.");
+}
+
+function nativeControlLabel(control) {
+  const modes = {platform_default:"native default · deployment dependent",enabled:"enabled preference",disabled:"disabled preference",automatic:"automatic threshold preference",custom:"custom preference · not interpreted",unavailable:"unavailable"};
+  const sources = {environment:"inspected environment",settings:"saved settings",platform:"platform",unavailable:"unavailable"};
+  return (modes[control?.mode] || "unavailable") + " (" + (sources[control?.source] || "unavailable") + ")";
+}
+
+function renderAudit(report) {
+  const audit = report.instruction_audit;
+  if (!audit) {
+    set("audit-note", report.audit_warning || "No saved audit yet. Session-start hooks audit eligible project instructions automatically.");
+    $("audit-rows").replaceChildren(emptyRow(4,"No eligible audited files available.")); return;
+  }
+  set("audit-note", (audit.stale ? "Stale metadata · " : "Last audited · ") + new Date(audit.created_at*1000).toLocaleString() + " · " + audit.files.length + " files · " + bytes(audit.bytes) + " sampled" + (audit.truncated ? " · partial coverage" : "") + ". " + audit.skipped + " read rejections. Counts are advisory; preserve all requirements.");
+  $("audit-rows").replaceChildren(...(audit.files.length ? audit.files.map(file => {
+    const tr = node("tr"); tr.append(node("td",file.path),node("td",number.format(file.bytes)),node("td",number.format(file.repeated_bytes)),node("td",file.truncated ? "Partial sample" : "Full file sample")); return tr;
+  }) : [emptyRow(4,"No eligible instruction files found in the audit scope.")]));
+}
+
+function renderFeatures(report, state) {
+  const rows = report.features.map(feature => {
+    let availability;
+    if (feature.mode === "recommendation") availability = "Recommendation";
+    else if (feature.mode === "report") availability = "Available · read-only";
+    else if (feature.id === "handoffs") availability = "Available · bounded snapshots";
+    else if (feature.id === "mcp") availability = (feature.actions ? "ToolSearch call recorded · " : "") + nativeControlLabel(state.native_controls?.tool_search);
+    else if (feature.id === "cache") availability = (typeof report.native?.cache_read === "number" ? "Native cache sample · " : "") + nativeControlLabel(state.native_controls?.prompt_cache);
+    else if (!state.enabled) availability = "Not active";
+    else if (feature.id === "budget") availability = report.native && recentSample(report.native.updated_at) ? "Native-aware sizing ready" : "Fallback sizing ready";
+    else if (feature.id === "instructions") availability = report.instruction_audit ? (report.instruction_audit.stale ? "Audit stale · advisory" : "Audit available · advisory") : "Audit unavailable";
+    else if (feature.id === "retry") availability = feature.actions ? "Guidance recorded" : "Ready · no notice recorded";
+    else if (feature.id === "exclusions") availability = "Enforced on eligible files";
+    else if (feature.mode === "guidance") availability = report.guidance.actions ? "Guidance delivered" : "Guidance · awaiting session";
+    else if (feature.mode === "native") {
+      const key = {concise: "outputStyle", effort: "effortLevel", native: "statusLine", usage: "statusLine"}[feature.id];
+      availability = feature.id === "compaction" ? (state.compaction_percent ? "Configured threshold" : "Existing native setting") : (["native", "usage"].includes(feature.id) && report.native ? "Native sample recorded" : key && state.defaults?.includes(key) ? "Default registered" : "Existing preference / unavailable");
+    } else availability = feature.actions ? "Recorded activity" : "Ready · no recorded action";
+    const tr = node("tr"), label = node("td"); label.append(node("strong", feature.label), node("small", feature.detail));
+    tr.append(label, node("td", availability), node("td", number.format(feature.actions)), node("td", feature.actions ? signed(feature.net_tokens) : "—", tone(feature.net_tokens))); return tr;
+  });
+  $("feature-rows").replaceChildren(...rows);
+  const parts = [...report.features.filter(feature => feature.before_bytes || feature.after_bytes), {label: "Session guidance", ...report.guidance}];
+  const maximum = Math.max(1, ...parts.map(part => Math.abs(part.net_tokens)));
+  $("live-contributions").replaceChildren(...parts.filter(part => part.actions).map(part => {
+    const row = node("div", undefined, "contribution-row"), label = node("div"), track = node("div", undefined, "contribution-track"), bar = node("div", undefined, "contribution-bar " + tone(part.net_tokens));
+    label.append(node("span", part.label), node("strong", signed(part.net_tokens)));
+    // Native progress elements work under the dashboard's restrictive content security policy.
+    const meter = document.createElement("meter"); meter.min = 0; meter.max = maximum; meter.value = Math.abs(part.net_tokens); meter.setAttribute("aria-label", part.label + ": " + signed(part.net_tokens) + " estimated tokens");
+    bar.append(meter); track.append(bar); row.append(label, track); return row;
+  }));
+  if (!$("live-contributions").children.length) $("live-contributions").append(node("p", "Recorded payload changes will appear here.", "chart-empty"));
+}
+
+function renderLiveRows(report) {
+  $("live-session-rows").replaceChildren(...(report.sessions.length ? report.sessions.map(session => {
+    const tr = node("tr"), label = node("td", trim(session.session_id)); label.title = session.session_id;
+    tr.append(label, node("td", number.format(session.actions)), node("td", signed(session.net_tokens), tone(session.net_tokens)), node("td", amount(session.net_tokens)));
+    const action = node("td"), button = node("button", "View ↗", "view-session"); button.setAttribute("aria-label", "View optimizer session " + session.session_id); button.addEventListener("click", () => selectSession(session.session_id)); action.append(button); tr.append(action); return tr;
+  }) : [emptyRow(5, "No optimizer actions recorded yet. History begins with supported hook events.")]));
+  $("live-prompt-rows").replaceChildren(...(report.prompts.length ? report.prompts.map(prompt => {
+    const tr = node("tr"), cell = node("td"), details = node("details"), summary = node("summary", trim(prompt.prompt_id)); summary.title = prompt.prompt_id;
+    const list = node("ul", undefined, "receipt-list");
+    for (const event of prompt.events) list.append(node("li", event.kind + " · " + trim(event.tool_id) + " · " + number.format(event.before_bytes) + " → " + number.format(event.after_bytes) + " bytes"));
+    if (prompt.events_truncated) list.append(node("li", "Latest 20 actions shown; totals include all actions."));
+    details.append(summary, node("small", trim(prompt.session_id) + " · " + (prompt.created_at ? new Date(prompt.created_at).toLocaleString() : "Legacy action · date unavailable")), list); cell.append(details);
+    tr.append(cell, node("td", number.format(prompt.before_bytes) + " → " + number.format(prompt.after_bytes)), node("td", signed(prompt.net_tokens), tone(prompt.net_tokens)), node("td", amount(prompt.net_tokens))); return tr;
+  }) : [emptyRow(4, "No optimizer actions for this scope.")]));
+  set("live-page-caption", report.prompt_count ? number.format(liveOffset + 1) + "–" + number.format(Math.min(liveOffset + 50, report.prompt_count)) + " of " + number.format(report.prompt_count) + " prompt groups" : "No recorded prompt groups");
+  $("live-previous").disabled = liveOffset === 0; $("live-next").disabled = liveOffset + 50 >= report.prompt_count;
 }
 
 function svgNode(tag, attrs, text) {
@@ -84,20 +211,21 @@ function svgNode(tag, attrs, text) {
   if (text !== undefined) element.textContent = text;
   return element;
 }
-function timeline() {
+function timeline(live = false) {
+  const span = live ? 30 : days, source = live ? data.optimizer.report.daily : data.daily, field = live ? "net_tokens" : "saved_tokens", target = live ? "live-timeline" : "timeline";
   const rows = [];
   const now = new Date();
-  for (let i = days - 1; i >= 0; i--) {
+  for (let i = span - 1; i >= 0; i--) {
     const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - i));
     const day = date.toISOString().slice(0, 10);
-    rows.push({day, saved_tokens: data.daily.find(row => row.day === day)?.saved_tokens || 0});
+    rows.push({day, saved_tokens: source.find(row => row.day === day)?.[field] || 0});
   }
   const total = rows.reduce((sum, row) => sum + row.saved_tokens, 0);
-  set("chart-total", signed(total) + " tokens · " + days + " days");
-  if (!data.selected.prompts) {
-    $("timeline").replaceChildren(node("p", "Your timeline will appear after the first recorded snapshot.", "chart-empty")); return;
+  if (!live) set("chart-total", signed(total) + " tokens · " + span + " days");
+  if (!(live ? data.optimizer.report.selected.actions : data.selected.prompts)) {
+    $(target).replaceChildren(node("p", live ? "Your timeline will appear after the first recorded action." : "Your timeline will appear after the first recorded snapshot.", "chart-empty")); return;
   }
-  const svg = svgNode("svg", {viewBox: "0 0 640 210", role: "img", "aria-label": "Daily estimated net token savings over the last " + days + " days. Total " + signed(total) + ". Negative bars show handoff overhead."});
+  const svg = svgNode("svg", {viewBox: "0 0 640 210", role: "img", "aria-label": "Daily estimated net token reduction over the last " + span + " days. Total " + signed(total) + ". Negative bars show added context."});
   const max = Math.max(1, ...rows.map(row => row.saved_tokens));
   const min = Math.min(0, ...rows.map(row => row.saved_tokens));
   const y = value => 15 + (max - value) / (max - min) * 155;
@@ -116,7 +244,7 @@ function timeline() {
       svg.append(svgNode("text", {x: x + step / 2, y: 197, "text-anchor": "middle", class: "chart-axis"}, new Date(row.day + "T00:00:00Z").toLocaleDateString(undefined, {month: "short", day: "numeric", timeZone: "UTC"})));
     }
   }
-  $("timeline").replaceChildren(svg);
+  $(target).replaceChildren(svg);
 }
 
 function renderSessions() {
@@ -157,7 +285,7 @@ async function load() {
   activeRequest = currentRequest; $("refresh").disabled = true;
   try {
     if (!key) throw new Error("Open the original Pilotboard link printed in your terminal. Its access key stays in the URL fragment.");
-    const args = new URLSearchParams({offset: String(offset)});
+    const args = new URLSearchParams({offset: String(offset), live_offset: String(liveOffset)});
     if (selectedSession !== undefined) args.set("session", selectedSession);
     const response = await fetch("/api/usage?" + args, {headers: {"X-Pilotboard-Key": key}, cache: "no-store", signal: currentRequest.signal});
     if (!response.ok) throw new Error(await response.text());
@@ -176,12 +304,14 @@ async function load() {
     set("updated", "Connection needs attention");
   } finally { if (activeRequest === currentRequest) { activeRequest = null; $("refresh").disabled = false; } }
 }
-function selectSession(value) { selectedSession = value; offset = 0; $("search").value = ""; load(); }
+function selectSession(value) { selectedSession = value; offset = 0; liveOffset = 0; $("search").value = ""; load(); }
 $("session").addEventListener("change", event => selectSession(event.target.value));
 $("refresh").addEventListener("click", load);
 $("search").addEventListener("input", () => { if (data) renderPrompts(); });
 $("previous").addEventListener("click", () => { offset = Math.max(0, offset - 50); load(); });
 $("next").addEventListener("click", () => { offset += 50; load(); });
+$("live-previous").addEventListener("click", () => { liveOffset = Math.max(0, liveOffset - 50); load(); });
+$("live-next").addEventListener("click", () => { liveOffset += 50; load(); });
 $("rate").addEventListener("input", () => {
   const valid = $("rate").checkValidity() && $("rate").value !== "";
   $("rate").setAttribute("aria-invalid", String(!valid));
@@ -210,3 +340,4 @@ try {
 } catch (_) { /* A rate is optional; the illustrative default remains visible. */ }
 load();
 setInterval(() => { if (!document.hidden) load(); }, 15000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });

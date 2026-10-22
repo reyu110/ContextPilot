@@ -69,7 +69,7 @@ TOTALS = """COUNT(*) AS prompts, COALESCE(SUM(baseline_tokens), 0) AS baseline_t
     COALESCE(SUM(cache_bytes), 0) AS cache_bytes"""
 
 
-def summary(root: Path, session_id: str | None = None, offset: int = 0) -> dict:
+def empty_summary(root: Path, session_id: str | None = None, offset: int = 0) -> dict:
     if session_id is not None:
         identifier(session_id)
     if type(offset) is not int or not 0 <= offset <= 10**9:
@@ -78,9 +78,14 @@ def summary(root: Path, session_id: str | None = None, offset: int = 0) -> dict:
               "handoff_tokens": 0, "saved_tokens": 0, "cache_bytes": 0},
               "sessions": [], "session_count": 0, "daily": [], "prompts": [],
               "selected_session": session_id, "offset": offset, "page_size": 50, "first_recorded": None}
+    result["selected"] = result["lifetime"].copy()
+    return result
+
+
+def summary(root: Path, session_id: str | None = None, offset: int = 0) -> dict:
+    result = empty_summary(root, session_id, offset)
     path = database_path(root)
     if not path.exists():
-        result["selected"] = result["lifetime"].copy()
         return result
     # Dashboard reads must not create a database or modify its schema.
     with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=10)) as db:

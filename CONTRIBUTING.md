@@ -12,7 +12,10 @@ credentials. Pilotboard integration tests bind only to loopback.
 
 Changes must preserve deterministic ordering, bounded reads/exports, faithful
 ignore handling, safe paths and read-only status/resume. Do not add repository
-script execution, telemetry, inferred session history, or raw source exports.
+script execution, external telemetry, inferred session history, or raw source
+exports. Local numeric observations may use documented native status-line input
+only; never follow transcript paths. Install-time plugin hooks must preserve
+existing settings and an explicit pause, and unknown tool output must pass through.
 Keep skill docs and flags aligned with the bundled Python CLI. Inspect generated
 handoffs and run all tests before submitting. Describe behavior, proof, and any
 limitations in the PR; avoid unrelated cleanup.

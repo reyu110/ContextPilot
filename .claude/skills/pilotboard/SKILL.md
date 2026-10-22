@@ -6,7 +6,7 @@ disable-model-invocation: true
 argument-hint: "[--root PATH] [--port N]"
 ---
 
-For an explicit `/pilotboard` invocation, start the sibling `contextpilot`
+For an explicit `/pilotboard` or `/contextpilot:pilotboard` invocation, start the sibling `contextpilot`
 bundle's self-contained dashboard in the shell tool's background-process mode:
 
 ```sh
